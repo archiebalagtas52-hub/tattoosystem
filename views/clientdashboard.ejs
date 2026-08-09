@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/css/clientdashboard.css">
+    <title>Tattoo Home-Based Management System</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <nav class="navbar">
+
+        <div class="logo">
+            Totats<span>Skin Art Tattoo</span>
+        </div>
+
+        <ul class="nav-links">
+            <li><a href="/Photos">Photos</a></li>
+            <li><a href="/aboutus">About Us</a></li>
+            <li><a href="/logout">Logout</a></li>
+        </ul>
+
+    </nav>
+
+
+    <main class="container">
+
+        <section class="welcome">
+            <h1>Welcome, <span id="usernameDisplay">Client</span>!</h1>
+            <p>Manage your tattoo appointments.</p>
+        </section>
+
+
+        <section class="dashboard-card">
+
+            <div class="card-content">
+                <h2>Book Your Tattoo Appointment</h2>
+
+                <p>
+                    Schedule an appointment to an tattoo artist
+                    and choose your preferred date and time.
+                </p>
+
+                <button type="button" onclick="openAppointmentModal()">
+                    Appointment Now
+                </button>
+            </div>
+
+        </section>
+
+
+        <section class="dashboard-section">
+
+            <h2>My Appointments</h2>
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Artist</th>
+                        <th>Date</th>
+                        <th>Time</th>
+                        <th>Tattoo Type</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+
+                <tbody id="appointmentsBody">
+                    <!-- Appointments will be loaded here dynamically -->
+                </tbody>
+
+            </table>
+
+        </section>
+
+    </main>
+
+
+    <div id="appointmentModal" class="modal">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h2>Book an Appointment</h2>
+
+                <button type="button"
+                        class="close-btn"
+                        onclick="closeAppointmentModal()">
+                    &times;
+                </button>
+            </div>
+
+
+            <form id="appointmentForm">
+
+                <div class="form-group">
+                    <label for="clientName">Full Name</label>
+                    <input
+                        type="text"
+                        id="clientName"
+                        name="clientName"
+                        placeholder="Enter your full name"
+                        required
+                    >
+                </div>
+
+
+                <div class="form-group">
+                    <label for="phone">Contact Number</label>
+                    <input
+                        type="tel"
+                        id="phone"
+                        name="phone"
+                        placeholder="Enter your contact number"
+                        required
+                    >
+                </div>
+
+
+                <div class="form-group">
+                    <label for="artist">Tattoo Artist</label>
+
+                    <select id="artist" name="artist">
+                    </select>
+                </div>
+
+
+                <div class="form-row">
+
+                    <div class="form-group">
+                        <label for="date">Appointment Date</label>
+
+                        <input
+                            type="date"
+                            id="date"
+                            name="date"
+                            required
+                        >
+                    </div>
+
+
+                    <div class="form-group">
+                        <label for="time">Appointment Time</label>
+
+                        <input
+                            type="time"
+                            id="time"
+                            name="time"
+                            required
+                        >
+                    </div>
+
+                </div>
+
+
+                <div class="form-group">
+                    <label for="tattooType">Tattoo Type</label>
+
+                    <select id="tattooType" name="tattooType" required>
+                        <option value="">Select Tattoo Type</option>
+                        <option value="Traditional">Traditional</option>
+                        <option value="Minimalist">Minimalist</option>
+                        <option value="Realism">Realism</option>
+                        <option value="Tribal">Tribal</option>
+                        <option value="Custom">Custom Design</option>
+                    </select>
+                </div>
+
+
+                <div class="form-group">
+                    <label for="description">Tattoo Description</label>
+
+                    <textarea
+                        id="description"
+                        name="description"
+                        rows="4"
+                        placeholder="Describe your desired tattoo..."
+                    ></textarea>
+                </div>
+
+
+                <div class="form-group">
+                    <label for="reference">
+                        Reference Photo
+                    </label>
+
+                    <input
+                        type="file"
+                        id="reference"
+                        name="reference"
+                        accept="image/*"
+                    >
+                </div>
+
+
+                <div class="modal-actions">
+
+                    <button
+                        type="button"
+                        class="cancel-btn"
+                        onclick="closeAppointmentModal()">
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="submit-btn">
+                        Book Appointment
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <script>
+
+        function openAppointmentModal() {
+            document.getElementById("appointmentModal").style.display = "flex";
+        }
+
+        function closeAppointmentModal() {
+            document.getElementById("appointmentModal").style.display = "none";
+        }
+
+        window.onclick = function(event) {
+
+            const modal = document.getElementById("appointmentModal");
+
+            if (event.target === modal) {
+                modal.style.display = "none";
+            }
+
+        };
+
+    </script>
+
+    <!-- ================================================== -->
+    <!-- ADD CLIENTDASHBOARD.JS -->
+    <!-- ================================================== -->
+    <script src="/js/clientdashboard.js"></script>
+
+</body>
+</html>

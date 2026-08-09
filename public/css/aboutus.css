@@ -1,0 +1,406 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+html,
+body {
+    width: 100%;
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+}
+
+body {
+    background: #f5f5f5;
+    color: #222;
+}
+
+.navbar {
+    width: 100%;
+    height: 70px;
+    background: #111;
+    display: flex;
+    align-items: center;
+    padding: 0 30px;
+    color: #fff;
+    overflow: hidden;
+}
+
+.logo {
+    width: 220px;
+    flex-shrink: 0;
+    font-size: 22px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
+.logo span {
+    color: #e63946;
+    margin-left: 5px;
+}
+
+.nav-links {
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    min-width: 0;
+}
+
+.nav-links li {
+    list-style: none;
+    flex-shrink: 0;
+}
+
+.nav-links a {
+    display: block;
+    color: #fff;
+    text-decoration: none;
+    padding: 11px 13px;
+    border-radius: 5px;
+    font-size: 13px;
+    transition: 0.3s ease;
+    white-space: nowrap;
+}
+
+.nav-links a:hover,
+.nav-links a.active {
+    background: #e63946;
+}
+
+.admin-profile {
+    width: 130px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+.admin-icon {
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: #e63946;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.container {
+    width: 100%;
+    max-width: 1250px;
+    margin: 0 auto;
+    padding: 40px;
+}
+
+.about-header {
+    text-align: center;
+    margin-bottom: 35px;
+}
+
+.about-header h1 {
+    font-size: 32px;
+    margin-bottom: 10px;
+}
+
+.about-header p {
+    color: #777;
+    font-size: 15px;
+}
+
+.about-hero {
+    width: 100%;
+    background: #fff;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 25px;
+    margin-bottom: 25px;
+}
+
+.about-hero h1 {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #222;
+}
+
+.about-hero p {
+    font-size: 14px;
+    color: #777;
+    line-height: 1.7;
+    margin: 0;
+}
+
+.about-content {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+}
+
+.about-card {
+    min-width: 0;
+    background: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.07);
+}
+
+.about-card h2 {
+    font-size: 21px;
+    margin-bottom: 15px;
+    color: #111;
+    border-left: 4px solid #e63946;
+    padding-left: 12px;
+}
+
+.about-card p {
+    color: #666;
+    font-size: 14px;
+    line-height: 1.8;
+}
+
+.about-card ul {
+    list-style: none;
+    padding: 0;
+}
+
+.about-card li {
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+    color: #555;
+    font-size: 14px;
+}
+
+.about-card li:last-child {
+    border-bottom: none;
+}
+
+.about-card li::before {
+    content: "✓";
+    color: #e63946;
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+.mission-section {
+    width: 100%;
+    margin-top: 25px;
+    background: #111;
+    color: #fff;
+    padding: 35px;
+    border-radius: 10px;
+    text-align: center;
+}
+
+.mission-section h2 {
+    font-size: 23px;
+    margin-bottom: 12px;
+}
+
+.mission-section p {
+    max-width: 800px;
+    margin: auto;
+    color: #ccc;
+    line-height: 1.8;
+    font-size: 14px;
+}
+
+.contact-section {
+    width: 100%;
+    margin-top: 25px;
+    background: #fff;
+    padding: 30px;
+    border-radius: 10px;
+    text-align: center;
+    box-shadow: 0 3px 12px rgba(0, 0, 0, 0.07);
+}
+
+.contact-section h2 {
+    font-size: 22px;
+    margin-bottom: 10px;
+}
+
+.contact-section p {
+    color: #777;
+    font-size: 14px;
+    margin-bottom: 20px;
+}
+
+.contact-info {
+    display: flex;
+    justify-content: center;
+    gap: 30px;
+    flex-wrap: wrap;
+}
+
+.contact-info span {
+    color: #555;
+    font-size: 14px;
+    padding: 10px 15px;
+    background: #f5f5f5;
+    border-radius: 6px;
+}
+
+@media (max-width: 1100px) {
+
+    .navbar {
+        padding: 0 20px;
+    }
+
+    .logo {
+        width: 190px;
+        font-size: 20px;
+    }
+
+    .nav-links {
+        gap: 2px;
+    }
+
+    .nav-links a {
+        padding: 10px 9px;
+        font-size: 12px;
+    }
+
+    .admin-profile {
+        width: 110px;
+        font-size: 13px;
+    }
+
+    .container {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 850px) {
+
+    .navbar {
+        padding: 0 15px;
+    }
+
+    .logo {
+        width: 160px;
+        font-size: 18px;
+    }
+
+    .nav-links a {
+        padding: 9px 7px;
+        font-size: 11px;
+    }
+
+    .admin-profile {
+        display: none;
+    }
+
+    .container {
+        padding: 30px 20px;
+    }
+}
+
+@media (max-width: 700px) {
+
+    .navbar {
+        height: 70px;
+        padding: 0 10px;
+    }
+
+    .logo {
+        width: 140px;
+        font-size: 16px;
+    }
+
+    .nav-links {
+        gap: 2px;
+        overflow: hidden;
+    }
+
+    .nav-links a {
+        padding: 8px 6px;
+        font-size: 10px;
+    }
+
+    .container {
+        padding: 25px 15px;
+    }
+
+    .about-header h1 {
+        font-size: 26px;
+    }
+
+    .about-content {
+        grid-template-columns: 1fr;
+    }
+
+    .about-card {
+        padding: 25px;
+    }
+
+    .mission-section {
+        padding: 25px;
+    }
+
+    .contact-section {
+        padding: 25px;
+    }
+
+    .contact-info {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .contact-info span {
+        width: 100%;
+    }
+}
+
+@media (max-width: 450px) {
+
+    .navbar {
+        padding: 0 8px;
+    }
+
+    .logo {
+        width: 120px;
+        font-size: 14px;
+    }
+
+    .nav-links a {
+        padding: 7px 4px;
+        font-size: 9px;
+    }
+
+    .container {
+        padding: 20px 12px;
+    }
+
+    .about-hero {
+        padding: 20px;
+    }
+
+    .about-card {
+        padding: 20px;
+    }
+
+    .mission-section {
+        padding: 20px;
+    }
+
+    .contact-section {
+        padding: 20px;
+    }
+}
+

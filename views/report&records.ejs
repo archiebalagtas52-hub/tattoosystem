@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>report & records</title>
+
+    <link rel="stylesheet" href="/css/reports.css">
+</head>
+
+<body>
+
+    <nav class="navbar">
+
+        <div class="logo">
+            Totats<span> Skin Art Tattoo</span>
+        </div>
+
+        <ul class="nav-links">
+
+            <li>
+                <a href="/dashboard">
+                    Dashboard
+                </a>
+            </li>
+
+            <li>
+                <a href="/appointment">
+                    Appointment of a Client
+                </a>
+            </li>
+
+            <li>
+                <a href="/inventory">
+                    Inventory
+                </a>
+            </li>
+
+            <li>
+                <a href="/reports" class="active">
+                    Reports & Records
+                </a>
+            </li>
+
+            <li>
+                <a href="/photos">
+                    Photos Gallery
+                </a>
+            </li>
+
+            <li>
+                <a href="/logout">
+                    Logout
+                </a>
+            </li>
+
+        </ul>
+    </nav>
+
+
+    <main class="container">
+
+        <div class="page-header">
+
+            <div>
+                <h1>Reports & Records</h1>
+
+                <p>
+                    Manage and review client appointment records and reports.
+                </p>
+            </div>
+
+        </div>
+
+
+        <section class="summary-grid">
+
+            <div class="summary-card">
+                <div class="summary-icon">
+                    A
+                </div>
+
+                <div>
+                    <span>Total Appointments</span>
+                    <strong>25</strong>
+                </div>
+            </div>
+
+
+            <div class="summary-card">
+                <div class="summary-icon">
+                    C
+                </div>
+
+                <div>
+                    <span>Total Clients</span>
+                    <strong>18</strong>
+                </div>
+            </div>
+
+
+            <div class="summary-card">
+                <div class="summary-icon">
+                    P
+                </div>
+
+                <div>
+                    <span>Pending</span>
+                    <strong>5</strong>
+                </div>
+            </div>
+
+
+            <div class="summary-card">
+                <div class="summary-icon">
+                    ✓
+                </div>
+
+                <div>
+                    <span>Completed</span>
+                    <strong>20</strong>
+                </div>
+            </div>
+
+        </section>
+
+
+        <section class="records-section">
+
+            <div class="section-header">
+
+                <div>
+                    <h2>Appointment Records</h2>
+
+                    <p>
+                        List of client appointment history.
+                    </p>
+                </div>
+
+                <div class="filter-area">
+
+                    <input
+                        type="text"
+                        id="searchInput"
+                        placeholder="Search client..."
+                    >
+
+                    <select id="statusFilter">
+
+                        <option value="all">
+                            All Status
+                        </option>
+
+                        <option value="Pending">
+                            Pending
+                        </option>
+
+                        <option value="Confirmed">
+                            Confirmed
+                        </option>
+
+                        <option value="Completed">
+                            Completed
+                        </option>
+
+                        <option value="Cancelled">
+                            Cancelled
+                        </option>
+
+                    </select>
+
+                </div>
+
+            </div>
+
+
+            <div class="table-wrapper">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+                            <th>Client Name</th>
+                            <th>Contact</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Tattoo Type</th>
+                            <th>Payment</th>
+                            <th>Status</th>
+                        </tr>
+
+                    </thead>
+
+                    <tbody id="recordsTable">
+
+                        <tr>
+
+                            <td>
+                                Juan Dela Cruz
+                            </td>
+
+                            <td>
+                                09123456789
+                            </td>
+
+                            <td>
+                                August 10, 2026
+                            </td>
+
+                            <td>
+                                10:00 AM
+                            </td>
+
+                            <td>
+                                Realism
+                            </td>
+
+                            <td>
+                                <span class="payment paid">
+                                    Paid
+                                </span>
+                            </td>
+
+                            <td>
+                                <span class="status completed">
+                                    Completed
+                                </span>
+                            </td>
+
+                        </tr>
+
+
+                        <tr>
+
+                            <td>
+                                Maria Santos
+                            </td>
+
+                            <td>
+                                09987654321
+                            </td>
+
+                            <td>
+                                August 12, 2026
+                            </td>
+
+                            <td>
+                                1:00 PM
+                            </td>
+
+                            <td>
+                                Minimalist
+                            </td>
+
+                            <td>
+                                <span class="payment pending">
+                                    Pending
+                                </span>
+                            </td>
+
+                            <td>
+                                <span class="status pending">
+                                    Pending
+                                </span>
+                            </td>
+
+                        </tr>
+
+
+                        <tr>
+
+                            <td>
+                                Carlo Reyes
+                            </td>
+
+                            <td>
+                                09112233445
+                            </td>
+
+                            <td>
+                                August 14, 2026
+                            </td>
+
+                            <td>
+                                3:00 PM
+                            </td>
+
+                            <td>
+                                Tribal
+                            </td>
+
+                            <td>
+                                <span class="payment paid">
+                                    Paid
+                                </span>
+                            </td>
+
+                            <td>
+                                <span class="status confirmed">
+                                    Confirmed
+                                </span>
+                            </td>
+
+                        </tr>
+
+                    </tbody>
+
+                </table>
+
+            </div>
+
+            <div
+                class="no-records"
+                id="noRecords"
+            >
+                No records found.
+            </div>
+
+        </section>
+
+
+        <section class="client-records">
+
+            <div class="section-header">
+
+                <div>
+                    <h2>Client Records</h2>
+
+                    <p>
+                        Registered clients in the system.
+                    </p>
+                </div>
+
+            </div>
+
+
+            <div class="client-grid">
+
+                <div class="client-card">
+
+                    <div class="client-avatar">
+                        JD
+                    </div>
+
+                    <div class="client-info">
+
+                        <h3>
+                            Juan Dela Cruz
+                        </h3>
+
+                        <p>
+                            juan@email.com
+                        </p>
+
+                        <span>
+                            3 Appointments
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <div class="client-card">
+
+                    <div class="client-avatar">
+                        MS
+                    </div>
+
+                    <div class="client-info">
+
+                        <h3>
+                            Maria Santos
+                        </h3>
+
+                        <p>
+                            maria@email.com
+                        </p>
+
+                        <span>
+                            2 Appointments
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <div class="client-card">
+
+                    <div class="client-avatar">
+                        CR
+                    </div>
+
+                    <div class="client-info">
+
+                        <h3>
+                            Carlo Reyes
+                        </h3>
+
+                        <p>
+                            carlo@email.com
+                        </p>
+
+                        <span>
+                            1 Appointment
+                        </span>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <script>
+
+        const searchInput =
+            document.getElementById("searchInput");
+
+        const statusFilter =
+            document.getElementById("statusFilter");
+
+        const rows =
+            document.querySelectorAll("#recordsTable tr");
+
+        const noRecords =
+            document.getElementById("noRecords");
+
+
+        function filterRecords() {
+
+            const search =
+                searchInput.value.toLowerCase();
+
+            const status =
+                statusFilter.value;
+
+            let visible = 0;
+
+
+            rows.forEach(row => {
+
+                const text =
+                    row.textContent.toLowerCase();
+
+                const statusText =
+                    row.querySelector(".status")
+                        .textContent.trim();
+
+
+                const matchesSearch =
+                    text.includes(search);
+
+                const matchesStatus =
+                    status === "all" ||
+                    statusText === status;
+
+
+                if (
+                    matchesSearch &&
+                    matchesStatus
+                ) {
+
+                    row.style.display = "";
+
+                    visible++;
+
+                } else {
+
+                    row.style.display = "none";
+
+                }
+
+            });
+
+
+            noRecords.style.display =
+                visible === 0
+                    ? "block"
+                    : "none";
+        }
+
+
+        searchInput.addEventListener(
+            "input",
+            filterRecords
+        );
+
+        statusFilter.addEventListener(
+            "change",
+            filterRecords
+        );
+
+    </script>
+
+</body>
+</html>
+

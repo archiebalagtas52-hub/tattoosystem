@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Appointment Management - Tattoo Home-Based Management System</title>
+
+    <link rel="stylesheet" href="/css/appointment.css">
+</head>
+
+<body>
+
+    <nav class="navbar">
+
+        <div class="logo">
+            Totats<span>Skin Art Tattoo</span>
+        </div>
+
+        <ul class="nav-links">
+            <li><a href="/dashboard">Dashboard</a></li>
+            <li><a href="/appointment" class="active">Appointment of a Client</a></li>
+            <li><a href="/inventory">Inventory</a></li>
+            <li><a href="/reports">Reports & Records</a></li>
+            <li><a href="/photos">Photos Gallery</a></li>
+            <li><a href="/logout">Logout</a></li>
+        </ul>
+
+    </nav>
+
+
+    <main class="container">
+
+        <div class="page-header">
+
+            <div>
+                <h1>Client Appointments</h1>
+                <p>Manage and monitor all client appointments.</p>
+            </div>
+
+            <div class="total-box">
+                <span id="totalAppointments">0</span>
+                <small>Total Appointments</small>
+            </div>
+
+        </div>
+
+
+        <section class="controls">
+
+            <div class="search-box">
+                <input
+                    type="text"
+                    id="searchInput"
+                    placeholder="Search client..."
+                >
+            </div>
+
+            <select id="statusFilter">
+                <option value="all">All Status</option>
+                <option value="Pending">Pending</option>
+                <option value="Confirmed">Confirmed</option>
+                <option value="Rescheduled">Rescheduled</option>
+                <option value="Cancelled">Cancelled</option>
+            </select>
+
+            <input
+                type="date"
+                id="dateFilter"
+            >
+
+        </section>
+
+
+        <section class="appointment-card">
+
+            <div class="table-wrapper">
+
+                <table>
+
+                    <thead>
+                        <tr>
+                            <th>Client</th>
+                            <th>Contact</th>
+                            <th>Artist</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Service</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+
+                    <!-- Rows are rendered from MongoDB by /js/appointment.js -->
+                    <tbody id="appointmentTable"></tbody>
+
+                </table>
+
+            </div>
+
+            <div id="noAppointments" class="no-appointments">
+                No appointments found.
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <div id="rescheduleModal" class="modal">
+
+        <div class="modal-content">
+
+            <div class="modal-header">
+
+                <div>
+                    <h2>Reschedule Appointment</h2>
+                    <p>Change the client's appointment schedule.</p>
+                </div>
+
+                <button
+                    class="close-btn"
+                    onclick="closeReschedule()">
+                    &times;
+                </button>
+
+            </div>
+
+
+            <div class="client-details">
+
+                <div>
+                    <span>Client</span>
+                    <strong id="modalClient"></strong>
+                </div>
+
+                <div>
+                    <span>Artist</span>
+                    <strong id="modalArtist"></strong>
+                </div>
+
+            </div>
+
+
+            <form id="rescheduleForm">
+
+                <div class="form-group">
+
+                    <label for="newDate">
+                        New Appointment Date
+                    </label>
+
+                    <input
+                        type="date"
+                        id="newDate"
+                        required
+                    >
+
+                </div>
+
+
+                <div class="form-group">
+
+                    <label for="newTime">
+                        New Appointment Time
+                    </label>
+
+                    <input
+                        type="time"
+                        id="newTime"
+                        required
+                    >
+
+                </div>
+
+
+                <div
+                    id="conflictMessage"
+                    class="conflict-message">
+                </div>
+
+
+                <div class="modal-actions">
+
+                    <button
+                        type="button"
+                        class="cancel-modal-btn"
+                        onclick="closeReschedule()">
+                        Cancel
+                    </button>
+
+                    <button
+                        type="submit"
+                        class="save-btn">
+                        Save Schedule
+                    </button>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <div id="messageModal" class="modal">
+
+        <div class="message-content">
+
+            <div id="messageIcon" class="message-icon">
+                ✓
+            </div>
+
+            <h2 id="messageTitle">
+                Appointment Updated
+            </h2>
+
+            <p id="messageText">
+                The appointment has been updated successfully.
+            </p>
+
+            <button
+                class="save-btn"
+                onclick="closeMessage()">
+                OK
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <script src="/js/clientappointment.js"></script>
+
+</body>
+</html>
