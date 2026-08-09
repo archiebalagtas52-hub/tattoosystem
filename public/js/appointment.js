@@ -1,410 +1,317 @@
-let selectedRow = null;
+// ======================================================
+// APPOINTMENTS - loaded from MongoDB via /api/appointments
+// ======================================================
+
+let appointments = [];
+let rescheduleId = null;
+
+const tableBody = document.getElementById('appointmentTable');
+const totalBox = document.getElementById('totalAppointments');
+const noAppointments = document.getElementById('noAppointments');
+const searchInput = document.getElementById('searchInput');
+const statusFilter = document.getElementById('statusFilter');
+const dateFilter = document.getElementById('dateFilter');
+
+
+// ======================================================
+// HELPERS
+// ======================================================
+
+function escapeHtml(value) {
+    return String(value == null ? '' : value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function formatDate(value) {
+
+    if (!value) {
+        return '';
+    }
+
+    const parts = value.split('-');
+    const date = new Date(parts[0], Number(parts[1]) - 1, parts[2]);
+
+    if (isNaN(date.getTime())) {
+        return value;
+    }
+
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+}
+
+function formatTime(value) {
+
+    if (!value) {
+        return '';
+    }
+
+    const parts = value.split(':');
+    let hour = Number(parts[0]);
+    const minute = parts[1];
+    const suffix = hour >= 12 ? 'PM' : 'AM';
+
+    hour = hour % 12;
+
+    if (hour === 0) {
+        hour = 12;
+    }
+
+    return hour + ':' + minute + ' ' + suffix;
+}
+
+function showMessage(title, text, isError) {
+
+    document.getElementById('messageIcon').textContent = isError ? '!' : '✓';
+    document.getElementById('messageTitle').textContent = title;
+    document.getElementById('messageText').textContent = text;
+    document.getElementById('messageModal').classList.add('show');
+    document.getElementById('messageModal').style.display = 'flex';
+}
+
+function closeMessage() {
+    document.getElementById('messageModal').classList.remove('show');
+    document.getElementById('messageModal').style.display = 'none';
+}
+
+
+// ======================================================
+// LOAD FROM DATABASE
+// ======================================================
+
+async function loadAppointments() {
+
+    try {
+
+        const response = await fetch('/api/appointments');
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(data.message || 'Failed to load appointments');
+        }
+
+        appointments = data.appointments;
+
+        renderAppointments();
+
+    } catch (error) {
+
+        console.error('Load appointments error:', error);
+
+        tableBody.innerHTML = '';
+        noAppointments.textContent = 'Could not load appointments from the server.';
+        noAppointments.style.display = 'block';
+    }
+}
+
+
+// ======================================================
+// RENDER
+// ======================================================
+
+function getFiltered() {
+
+    const search = searchInput.value.trim().toLowerCase();
+    const status = statusFilter.value;
+    const date = dateFilter.value;
+
+    return appointments.filter(function (item) {
+
+        if (search && item.client.toLowerCase().indexOf(search) === -1) {
+            return false;
+        }
+
+        if (status !== 'all' && item.status !== status) {
+            return false;
+        }
+
+        if (date && item.date !== date) {
+            return false;
+        }
+
+        return true;
+    });
+}
+
+function renderAppointments() {
+
+    const rows = getFiltered();
+
+    totalBox.textContent = rows.length;
+
+    if (rows.length === 0) {
+        tableBody.innerHTML = '';
+        noAppointments.textContent = 'No appointments found.';
+        noAppointments.style.display = 'block';
+        return;
+    }
+
+    noAppointments.style.display = 'none';
+
+    tableBody.innerHTML = rows.map(function (item) {
+
+        const statusClass = item.status.toLowerCase();
+
+        let actions = '';
+
+        if (item.status === 'Pending') {
+            actions += '<button class="confirm-btn" onclick="confirmAppointment(this)">Confirm</button>';
+        }
+
+        if (item.status !== 'Cancelled') {
+            actions += '<button class="reschedule-btn" onclick="openReschedule(this)">Reschedule</button>';
+            actions += '<button class="cancel-btn" onclick="cancelAppointment(this)">Cancel</button>';
+        }
+
+        return '' +
+            '<tr data-id="' + item._id + '"' +
+            ' data-client="' + escapeHtml(item.client) + '"' +
+            ' data-artist="' + escapeHtml(item.artist) + '"' +
+            ' data-date="' + escapeHtml(item.date) + '"' +
+            ' data-time="' + escapeHtml(item.time) + '"' +
+            ' data-status="' + escapeHtml(item.status) + '">' +
+                '<td><strong>' + escapeHtml(item.client) + '</strong></td>' +
+                '<td>' + escapeHtml(item.contact) + '</td>' +
+                '<td>' + escapeHtml(item.artist) + '</td>' +
+                '<td>' + formatDate(item.date) + '</td>' +
+                '<td>' + formatTime(item.time) + '</td>' +
+                '<td>' + escapeHtml(item.service) + '</td>' +
+                '<td><span class="status ' + statusClass + '">' + escapeHtml(item.status) + '</span></td>' +
+                '<td class="actions">' + actions + '</td>' +
+            '</tr>';
+
+    }).join('');
+}
+
+
+// ======================================================
+// ACTIONS
+// ======================================================
+
+function rowId(button) {
+    return button.closest('tr').dataset.id;
+}
+
+async function updateStatus(id, status) {
+
+    const response = await fetch('/api/appointments/' + id + '/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: status })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Update failed');
+    }
+
+    return data.appointment;
+}
+
+async function confirmAppointment(button) {
+
+    try {
+        await updateStatus(rowId(button), 'Confirmed');
+        await loadAppointments();
+        showMessage('Appointment Confirmed', 'The appointment has been confirmed.', false);
+    } catch (error) {
+        showMessage('Update Failed', error.message, true);
+    }
+}
+
+async function cancelAppointment(button) {
+
+    if (!confirm('Cancel this appointment?')) {
+        return;
+    }
+
+    try {
+        await updateStatus(rowId(button), 'Cancelled');
+        await loadAppointments();
+        showMessage('Appointment Cancelled', 'The appointment has been cancelled.', false);
+    } catch (error) {
+        showMessage('Update Failed', error.message, true);
+    }
+}
+
+
+// ======================================================
+// RESCHEDULE MODAL
+// ======================================================
 
 function openReschedule(button) {
 
-    selectedRow = button.closest("tr");
+    const row = button.closest('tr');
 
-    const client = selectedRow.dataset.client;
-    const artist = selectedRow.dataset.artist;
-    const date = selectedRow.dataset.date;
-    const time = selectedRow.dataset.time;
+    rescheduleId = row.dataset.id;
 
-    document.getElementById("modalClient").textContent = client;
-    document.getElementById("modalArtist").textContent = artist;
+    document.getElementById('modalClient').textContent = row.dataset.client;
+    document.getElementById('modalArtist').textContent = row.dataset.artist;
+    document.getElementById('newDate').value = row.dataset.date;
+    document.getElementById('newTime').value = row.dataset.time;
+    document.getElementById('conflictMessage').textContent = '';
 
-    document.getElementById("newDate").value = date;
-    document.getElementById("newTime").value = time;
-
-    document.getElementById("conflictMessage").style.display = "none";
-
-    document.getElementById("rescheduleModal").style.display = "flex";
+    const modal = document.getElementById('rescheduleModal');
+    modal.classList.add('show');
+    modal.style.display = 'flex';
 }
 
 function closeReschedule() {
 
-    document.getElementById("rescheduleModal").style.display = "none";
+    rescheduleId = null;
 
-    selectedRow = null;
+    const modal = document.getElementById('rescheduleModal');
+    modal.classList.remove('show');
+    modal.style.display = 'none';
 }
 
-function checkConflict() {
+document.getElementById('rescheduleForm').addEventListener('submit', async function (e) {
 
-    if (!selectedRow) {
-        return false;
-    }
+    e.preventDefault();
 
-    const newDate =
-        document.getElementById("newDate").value;
+    const conflictMessage = document.getElementById('conflictMessage');
+    conflictMessage.textContent = '';
 
-    const newTime =
-        document.getElementById("newTime").value;
+    try {
 
-    const artist =
-        selectedRow.dataset.artist;
-
-    const rows =
-        document.querySelectorAll("#appointmentTable tr");
-
-    for (let row of rows) {
-
-        if (row === selectedRow) {
-            continue;
-        }
-
-        if (row.style.display === "none") {
-            continue;
-        }
-
-        const rowStatus =
-            row.dataset.status;
-
-        if (rowStatus === "Cancelled") {
-            continue;
-        }
-
-        const rowArtist =
-            row.dataset.artist;
-
-        const rowDate =
-            row.dataset.date;
-
-        const rowTime =
-            row.dataset.time;
-
-        if (
-            rowArtist === artist &&
-            rowDate === newDate &&
-            rowTime === newTime
-        ) {
-
-            return true;
-        }
-    }
-
-    return false;
-}
-
-document
-    .getElementById("rescheduleForm")
-    .addEventListener("submit", function(event) {
-
-        event.preventDefault();
-
-        if (!selectedRow) {
-            return;
-        }
-
-        const conflictMessage =
-            document.getElementById("conflictMessage");
-
-        const conflict = checkConflict();
-
-        if (conflict) {
-
-            conflictMessage.textContent =
-                "Schedule Conflict: " +
-                selectedRow.dataset.artist +
-                " already has an appointment at the selected date and time.";
-
-            conflictMessage.style.display = "block";
-
-            return;
-        }
-
-        const newDate =
-            document.getElementById("newDate").value;
-
-        const newTime =
-            document.getElementById("newTime").value;
-
-        selectedRow.dataset.date = newDate;
-        selectedRow.dataset.time = newTime;
-        selectedRow.dataset.status = "Rescheduled";
-
-        const dateCell =
-            selectedRow.cells[3];
-
-        const timeCell =
-            selectedRow.cells[4];
-
-        dateCell.textContent =
-            formatDate(newDate);
-
-        timeCell.textContent =
-            formatTime(newTime);
-
-        const statusCell =
-            selectedRow.cells[6];
-
-        statusCell.innerHTML =
-            '<span class="status rescheduled">Rescheduled</span>';
-
-        closeReschedule();
-
-        showMessage(
-            "Appointment Rescheduled",
-            "The client's appointment has been successfully rescheduled."
-        );
-    });
-
-function confirmAppointment(button) {
-
-    const row = button.closest("tr");
-
-    row.dataset.status = "Confirmed";
-
-    row.cells[6].innerHTML =
-        '<span class="status confirmed">Confirmed</span>';
-
-    button.remove();
-
-    showMessage(
-        "Appointment Confirmed",
-        "The client's appointment has been confirmed successfully."
-    );
-}
-
-function cancelAppointment(button) {
-
-    const row = button.closest("tr");
-
-    const client =
-        row.dataset.client;
-
-    const confirmation =
-        confirm(
-            "Are you sure you want to cancel " +
-            client +
-            "'s appointment?"
-        );
-
-    if (!confirmation) {
-        return;
-    }
-
-    row.dataset.status = "Cancelled";
-
-    row.cells[6].innerHTML =
-        '<span class="status cancelled">Cancelled</span>';
-
-    row.querySelectorAll(".actions button")
-        .forEach(button => {
-            button.remove();
+        const response = await fetch('/api/clientappointment/' + rescheduleId + '/reschedule', {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                date: document.getElementById('newDate').value,
+                time: document.getElementById('newTime').value
+            })
         });
 
-    showMessage(
-        "Appointment Cancelled",
-        "The client's appointment has been cancelled."
-    );
-}
+        const data = await response.json();
 
-function searchAppointments() {
-
-    const search =
-        document
-            .getElementById("searchInput")
-            .value
-            .toLowerCase();
-
-    const rows =
-        document.querySelectorAll("#appointmentTable tr");
-
-    let visible = 0;
-
-    rows.forEach(row => {
-
-        const client =
-            row.dataset.client.toLowerCase();
-
-        const contact =
-            row.cells[1].textContent.toLowerCase();
-
-        if (
-            client.includes(search) ||
-            contact.includes(search)
-        ) {
-
-            row.style.display = "";
-            visible++;
-
-        } else {
-
-            row.style.display = "none";
+        if (!response.ok || !data.success) {
+            conflictMessage.textContent = data.message || 'Reschedule failed.';
+            return;
         }
-    });
 
-    updateNoAppointments(visible);
-}
-
-function filterAppointments() {
-
-    const status =
-        document.getElementById("statusFilter").value;
-
-    const date =
-        document.getElementById("dateFilter").value;
-
-    const rows =
-        document.querySelectorAll("#appointmentTable tr");
-
-    let visible = 0;
-
-    rows.forEach(row => {
-
-        const rowStatus =
-            row.dataset.status;
-
-        const rowDate =
-            row.dataset.date;
-
-        const statusMatch =
-            status === "all" ||
-            rowStatus === status;
-
-        const dateMatch =
-            date === "" ||
-            rowDate === date;
-
-        if (statusMatch && dateMatch) {
-
-            row.style.display = "";
-            visible++;
-
-        } else {
-
-            row.style.display = "none";
-        }
-    });
-
-    updateNoAppointments(visible);
-}
-
-function updateNoAppointments(count) {
-
-    const noAppointments =
-        document.getElementById("noAppointments");
-
-    if (count === 0) {
-        noAppointments.style.display = "block";
-    } else {
-        noAppointments.style.display = "none";
-    }
-}
-
-function formatDate(date) {
-
-    const parts =
-        date.split("-");
-
-    const year =
-        parts[0];
-
-    const month =
-        parseInt(parts[1]);
-
-    const day =
-        parseInt(parts[2]);
-
-    const monthNames = [
-        "January",
-        "February",
-        "March",
-        "April",
-        "May",
-        "June",
-        "July",
-        "August",
-        "September",
-        "October",
-        "November",
-        "December"
-    ];
-
-    return (
-        monthNames[month - 1] +
-        " " +
-        day +
-        ", " +
-        year
-    );
-}
-
-function formatTime(time) {
-
-    const parts =
-        time.split(":");
-
-    let hour =
-        parseInt(parts[0]);
-
-    const minute =
-        parts[1];
-
-    const period =
-        hour >= 12 ? "PM" : "AM";
-
-    if (hour === 0) {
-        hour = 12;
-    } else if (hour > 12) {
-        hour -= 12;
-    }
-
-    return hour + ":" + minute + " " + period;
-}
-
-function showMessage(title, text) {
-
-    document.getElementById("messageTitle")
-        .textContent = title;
-
-    document.getElementById("messageText")
-        .textContent = text;
-
-    document.getElementById("messageModal")
-        .style.display = "flex";
-}
-
-function closeMessage() {
-
-    document.getElementById("messageModal")
-        .style.display = "none";
-}
-
-document
-    .getElementById("searchInput")
-    .addEventListener(
-        "keyup",
-        searchAppointments
-    );
-
-document
-    .getElementById("statusFilter")
-    .addEventListener(
-        "change",
-        filterAppointments
-    );
-
-document
-    .getElementById("dateFilter")
-    .addEventListener(
-        "change",
-        filterAppointments
-    );
-
-window.addEventListener("click", function(event) {
-
-    const rescheduleModal =
-        document.getElementById("rescheduleModal");
-
-    const messageModal =
-        document.getElementById("messageModal");
-
-    if (event.target === rescheduleModal) {
         closeReschedule();
-    }
+        await loadAppointments();
+        showMessage('Appointment Updated', 'The appointment has been rescheduled.', false);
 
-    if (event.target === messageModal) {
-        closeMessage();
+    } catch (error) {
+        conflictMessage.textContent = 'Something went wrong. Please try again.';
     }
 });
 
+
+// ======================================================
+// FILTERS + INITIAL LOAD
+// ======================================================
+
+searchInput.addEventListener('input', renderAppointments);
+statusFilter.addEventListener('change', renderAppointments);
+dateFilter.addEventListener('change', renderAppointments);
+
+loadAppointments();

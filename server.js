@@ -44,12 +44,14 @@ app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
 
+
+
 // ======================================================
 // API ROUTES
 // ======================================================
 
 app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/appointments", appointmentRoutes);
+app.use("/api/appointment", appointmentRoutes);
 app.use("/api/inventory", inventoryRoutes);
 
 
@@ -153,10 +155,6 @@ app.get("/register", (req, res) => {
     res.render("register");
 });
 
-app.get("/appointment", (req, res) => {
-    res.render("appoinment");
-});
-
 app.get("/dashboard", requireRole("admin"), (req, res) => {
     res.render("dashboard");
 });
@@ -165,8 +163,8 @@ app.get("/clientdashboard", requireRole("client"), (req, res) => {
     res.render("clientdashboard");
 });
 
-app.get("/clientappointment", (req, res) => {
-    res.render("clientappointment");
+app.get('/appointment', (req, res) => {
+    res.render('appointment');
 });
 
 app.get("/inventory", (req, res) => {
@@ -185,6 +183,9 @@ app.get("/reports", (req, res) => {
     res.render("report&records");
 });
 
+app.get('/clientappointment', (req, res) => {
+    res.render('clientappointment');
+});
 
 // ======================================================
 // LOGOUT
@@ -203,6 +204,29 @@ app.get("/logout", (req, res) => {
 // ======================================================
 // LOGIN API
 // ======================================================
+
+app.post('/clientappointment', (req, res) => {
+    try {
+        // Get form data
+        const { name, date, time, service } = req.body;
+        
+        // Process/save data here (database, etc.)
+        console.log('Appointment received:', { name, date, time, service });
+        
+        // Send success response
+        res.render('clientappointment', { 
+            success: true,
+            message: 'Appointment booked successfully!',
+            appointmentData: req.body
+        });
+        
+    } catch (error) {
+        console.error('Error:', error);
+        res.render('clientappointment', { 
+            error: 'Failed to book appointment. Please try again.' 
+        });
+    }
+});
 
 app.post("/login", async (req, res) => {
     let username = "";
@@ -461,7 +485,7 @@ const startServer = async () => {
         app.listen(PORT, () => {
 
             console.log(
-                `🚀 Server running at http://localhost:${PORT}`
+                ` Server running at http://localhost:${PORT}`
             );
 
         });
@@ -469,7 +493,7 @@ const startServer = async () => {
     } catch (error) {
 
         console.error(
-            "❌ Server error:",
+            "Server error:",
             error
         );
 
