@@ -7,6 +7,9 @@ import connectDB from "./config/database.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import appointmentRoutes from "./routes/appointmentRoutes.js";
 import inventoryRoutes from "./routes/inventoryRoutes.js";
+import reportRoutes from "./routes/reportRoutes.js";
+import photoRoutes from "./routes/photoRoutes.js";
+
 import User from "./models/user.js";
 import bcrypt from "bcrypt";
 import requireRole from "./middleware/requireRole.js";
@@ -51,9 +54,12 @@ app.set("views", path.join(__dirname, "views"));
 // ======================================================
 
 app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/appointment", appointmentRoutes);
+app.use("/api/appointments", appointmentRoutes);
 app.use("/api/inventory", inventoryRoutes);
-
+app.use("/api/reports", reportRoutes);
+app.use("/api/appointments/admin", reportRoutes);
+app.use("/api/appointments", appointmentRoutes);
+app.use("/api/photos", photoRoutes);
 
 // ======================================================
 // ROLE HELPERS
@@ -159,8 +165,12 @@ app.get("/dashboard", requireRole("admin"), (req, res) => {
     res.render("dashboard");
 });
 
+// FIXED: httpOnly ang login cookies, kaya hindi kayang basahin ng document.cookie
+// ang username. Ipinapasa na siya sa view.
 app.get("/clientdashboard", requireRole("client"), (req, res) => {
-    res.render("clientdashboard");
+    res.render("clientdashboard", {
+        username: req.cookies.username || "Client"
+    });
 });
 
 app.get('/appointment', (req, res) => {
@@ -175,11 +185,17 @@ app.get("/aboutus", (req, res) => {
     res.render("aboutus");
 });
 
+
 app.get("/photos", (req, res) => {
-    res.render("photos");
+    res.render("photos", { role: req.cookies.role || "client" });
 });
 
 app.get("/reports", (req, res) => {
+    res.render("report&records");
+});
+
+// alias so /report&records also works
+app.get("/report&records", (req, res) => {
     res.render("report&records");
 });
 
@@ -205,28 +221,9 @@ app.get("/logout", (req, res) => {
 // LOGIN API
 // ======================================================
 
-app.post('/clientappointment', (req, res) => {
-    try {
-        // Get form data
-        const { name, date, time, service } = req.body;
-        
-        // Process/save data here (database, etc.)
-        console.log('Appointment received:', { name, date, time, service });
-        
-        // Send success response
-        res.render('clientappointment', { 
-            success: true,
-            message: 'Appointment booked successfully!',
-            appointmentData: req.body
-        });
-        
-    } catch (error) {
-        console.error('Error:', error);
-        res.render('clientappointment', { 
-            error: 'Failed to book appointment. Please try again.' 
-        });
-    }
-});
+// REMOVED: app.post('/clientappointment') - nag-console.log lang, walang sinasave
+// sa MongoDB, kaya walang lumalabas sa admin dashboard.
+// POST /api/appointments na ang bahala sa booking.
 
 app.post("/login", async (req, res) => {
     let username = "";
@@ -464,24 +461,31 @@ app.post("/register", async function(req, res) {
 
 
 
+// ======================================================
+// API 404 - JSON, hindi HTML
+// ======================================================
+
+// Kung walang tumugmang /api route, mag-JSON para hindi "Unexpected server
+// response" ang makita sa frontend.
+app.use("/api", (req, res) => {
+    res.status(404).json({
+        success: false,
+        message: `API route not found: ${req.method} ${req.originalUrl}`
+    });
+});
+
+
 const startServer = async () => {
 
     try {
 
         console.log("Connecting to MongoDB...");
 
-        // Connect database
-        connectDB();
+        // Hintayin talaga ang DB bago gumawa ng admin
+        await connectDB();
 
-        // Give MongoDB a moment to connect
-        setTimeout(async () => {
+        await initializeAdmin();
 
-            await initializeAdmin();
-
-        }, 1000);
-
-
-        // Start server immediately
         app.listen(PORT, () => {
 
             console.log(

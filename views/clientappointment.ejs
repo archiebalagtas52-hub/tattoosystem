@@ -6,6 +6,9 @@
     <title>Appointment Management - Tattoo Home-Based Management System</title>
 
     <link rel="stylesheet" href="/css/appointment.css">
+    <link rel="stylesheet" href="/css/dashboard.css">
+
+    
 </head>
 
 <body>
@@ -13,6 +16,7 @@
     <nav class="navbar">
 
         <div class="logo">
+            <img src="/images/TotatsSkinArtTattoo.jpg" alt="Totats Skin Art Tattoo Logo">
             Totats<span>Skin Art Tattoo</span>
         </div>
 
@@ -60,6 +64,7 @@
                 <option value="Pending">Pending</option>
                 <option value="Confirmed">Confirmed</option>
                 <option value="Rescheduled">Rescheduled</option>
+                <option value="Completed">Completed</option>
                 <option value="Cancelled">Cancelled</option>
             </select>
 
@@ -85,6 +90,8 @@
                             <th>Date</th>
                             <th>Time</th>
                             <th>Service</th>
+                            <th>Image</th>
+                            <th>Payment</th>
                             <th>Status</th>
                             <th>Actions</th>
                         </tr>
@@ -197,6 +204,87 @@
                 </div>
 
             </form>
+
+        </div>
+
+    </div>
+
+
+    <!-- ==================================================
+         REFERENCE PHOTO
+         ================================================== -->
+
+    <div id="imageModal" class="modal">
+
+        <div class="modal-content" style="max-width: 560px;">
+
+            <div class="modal-header">
+
+                <div>
+                    <h2>Reference Photo</h2>
+                    <p>Design reference uploaded by the client.</p>
+                </div>
+
+                <button
+                    class="close-btn"
+                    onclick="closeImage()">
+                    &times;
+                </button>
+
+            </div>
+
+            <div style="text-align: center;">
+                <img
+                    id="imagePreview"
+                    class="image-preview"
+                    src=""
+                    alt="Reference photo"
+                >
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- ==================================================
+         PAYMENT
+         ================================================== -->
+
+    <div id="paymentModal" class="modal">
+
+        <div class="modal-content" style="max-width: 380px;">
+
+            <div class="modal-header">
+
+                <div>
+                    <h2>Select Payment</h2>
+                    <p>Choose how the client paid.</p>
+                </div>
+
+                <button
+                    class="close-btn"
+                    onclick="closePayment()">
+                    &times;
+                </button>
+
+            </div>
+
+            <div class="payment-options">
+
+                <button type="button" class="save-btn" data-pay="GCash">
+                    GCash
+                </button>
+
+                <button type="button" class="save-btn" data-pay="Cash">
+                    Cash
+                </button>
+
+                <button type="button" class="cancel-modal-btn" data-pay="Unpaid">
+                    Unpaid
+                </button>
+
+            </div>
 
         </div>
 

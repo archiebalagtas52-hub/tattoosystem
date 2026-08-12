@@ -5,7 +5,7 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>report & records</title>
+    <title>Reports &amp; Records - Tattoo Home-Based Management System</title>
 
     <link rel="stylesheet" href="/css/reports.css">
 </head>
@@ -15,6 +15,7 @@
     <nav class="navbar">
 
         <div class="logo">
+            <img src="/images/TotatsSkinArtTattoo.jpg" alt="Totats Skin Art Tattoo Logo">
             Totats<span> Skin Art Tattoo</span>
         </div>
 
@@ -27,7 +28,7 @@
             </li>
 
             <li>
-                <a href="/appointment">
+                <a href="/clientappointment">
                     Appointment of a Client
                 </a>
             </li>
@@ -40,7 +41,7 @@
 
             <li>
                 <a href="/reports" class="active">
-                    Reports & Records
+                    Reports &amp; Records
                 </a>
             </li>
 
@@ -57,6 +58,7 @@
             </li>
 
         </ul>
+
     </nav>
 
 
@@ -65,7 +67,7 @@
         <div class="page-header">
 
             <div>
-                <h1>Reports & Records</h1>
+                <h1>Reports &amp; Records</h1>
 
                 <p>
                     Manage and review client appointment records and reports.
@@ -75,57 +77,73 @@
         </div>
 
 
+        <!-- ==================================================
+             SUMMARY - galing sa MongoDB
+             ================================================== -->
+
         <section class="summary-grid">
 
             <div class="summary-card">
+
                 <div class="summary-icon">
                     A
                 </div>
 
                 <div>
                     <span>Total Appointments</span>
-                    <strong>25</strong>
+                    <span id="totalAppointments">0</span>
                 </div>
+
             </div>
 
 
             <div class="summary-card">
+
                 <div class="summary-icon">
                     C
                 </div>
 
                 <div>
                     <span>Total Clients</span>
-                    <strong>18</strong>
+                    <span id="totalClients">0</span>
                 </div>
+
             </div>
 
 
             <div class="summary-card">
+
                 <div class="summary-icon">
                     P
                 </div>
 
                 <div>
                     <span>Pending</span>
-                    <strong>5</strong>
+                    <span id="totalPending">0</span>
                 </div>
+
             </div>
 
 
             <div class="summary-card">
+
                 <div class="summary-icon">
-                    ✓
+                    &#10003;
                 </div>
 
                 <div>
                     <span>Completed</span>
-                    <strong>20</strong>
+                    <span id="totalCompleted">0</span>
                 </div>
+
             </div>
 
         </section>
 
+
+        <!-- ==================================================
+             APPOINTMENT RECORDS
+             ================================================== -->
 
         <section class="records-section">
 
@@ -161,6 +179,10 @@
                             Confirmed
                         </option>
 
+                        <option value="Rescheduled">
+                            Rescheduled
+                        </option>
+
                         <option value="Completed">
                             Completed
                         </option>
@@ -170,6 +192,23 @@
                         </option>
 
                     </select>
+
+                    <div class="date-range">
+
+                        <label for="fromDate">From</label>
+                        <input type="date" id="fromDate">
+
+                        <label for="toDate">To</label>
+                        <input type="date" id="toDate">
+
+                    </div>
+
+                    <button type="button" id="clearFilters">Clear</button>
+                    <button type="button" id="refreshBtn">Refresh</button>
+                    <button type="button" id="exportBtn">Export CSV</button>
+                    <button type="button" id="printBtn">Print</button>
+
+                    <span class="shown-count" id="shownCount"></span>
 
                 </div>
 
@@ -194,133 +233,23 @@
 
                     </thead>
 
-                    <tbody id="recordsTable">
-
-                        <tr>
-
-                            <td>
-                                Juan Dela Cruz
-                            </td>
-
-                            <td>
-                                09123456789
-                            </td>
-
-                            <td>
-                                August 10, 2026
-                            </td>
-
-                            <td>
-                                10:00 AM
-                            </td>
-
-                            <td>
-                                Realism
-                            </td>
-
-                            <td>
-                                <span class="payment paid">
-                                    Paid
-                                </span>
-                            </td>
-
-                            <td>
-                                <span class="status completed">
-                                    Completed
-                                </span>
-                            </td>
-
-                        </tr>
-
-
-                        <tr>
-
-                            <td>
-                                Maria Santos
-                            </td>
-
-                            <td>
-                                09987654321
-                            </td>
-
-                            <td>
-                                August 12, 2026
-                            </td>
-
-                            <td>
-                                1:00 PM
-                            </td>
-
-                            <td>
-                                Minimalist
-                            </td>
-
-                            <td>
-                                <span class="payment pending">
-                                    Pending
-                                </span>
-                            </td>
-
-                            <td>
-                                <span class="status pending">
-                                    Pending
-                                </span>
-                            </td>
-
-                        </tr>
-
-
-                        <tr>
-
-                            <td>
-                                Carlo Reyes
-                            </td>
-
-                            <td>
-                                09112233445
-                            </td>
-
-                            <td>
-                                August 14, 2026
-                            </td>
-
-                            <td>
-                                3:00 PM
-                            </td>
-
-                            <td>
-                                Tribal
-                            </td>
-
-                            <td>
-                                <span class="payment paid">
-                                    Paid
-                                </span>
-                            </td>
-
-                            <td>
-                                <span class="status confirmed">
-                                    Confirmed
-                                </span>
-                            </td>
-
-                        </tr>
-
-                    </tbody>
+                    <!-- Rows are rendered from MongoDB by /js/report.js -->
+                    <tbody id="recordsTable"></tbody>
 
                 </table>
 
             </div>
 
-            <div
-                class="no-records"
-                id="noRecords"
-            >
+            <div class="no-records" id="noRecords">
                 No records found.
             </div>
 
         </section>
 
+
+        <!-- ==================================================
+             CLIENT RECORDS
+             ================================================== -->
 
         <section class="client-records">
 
@@ -336,83 +265,39 @@
 
             </div>
 
+            <!-- Cards are rendered from MongoDB by /js/report.js -->
+            <div class="client-grid" id="clientGrid"></div>
 
-            <div class="client-grid">
+            <div class="no-records" id="noClients">
+                No clients found.
+            </div>
 
-                <div class="client-card">
+        </section>
 
-                    <div class="client-avatar">
-                        JD
-                    </div>
 
-                    <div class="client-info">
+        <!-- ==================================================
+             REFERENCE PHOTOS - katabi ng Client Records
+             ================================================== -->
 
-                        <h3>
-                            Juan Dela Cruz
-                        </h3>
+        <section class="client-records">
 
-                        <p>
-                            juan@email.com
-                        </p>
+            <div class="section-header">
 
-                        <span>
-                            3 Appointments
-                        </span>
+                <div>
+                    <h2>Reference Photos</h2>
 
-                    </div>
-
+                    <p>
+                        Photos submitted or chosen by clients for their appointments.
+                    </p>
                 </div>
 
+            </div>
 
-                <div class="client-card">
+            <!-- Rendered from MongoDB by /js/report.js -->
+            <div class="photo-grid" id="photoGrid"></div>
 
-                    <div class="client-avatar">
-                        MS
-                    </div>
-
-                    <div class="client-info">
-
-                        <h3>
-                            Maria Santos
-                        </h3>
-
-                        <p>
-                            maria@email.com
-                        </p>
-
-                        <span>
-                            2 Appointments
-                        </span>
-
-                    </div>
-
-                </div>
-
-
-                <div class="client-card">
-
-                    <div class="client-avatar">
-                        CR
-                    </div>
-
-                    <div class="client-info">
-
-                        <h3>
-                            Carlo Reyes
-                        </h3>
-
-                        <p>
-                            carlo@email.com
-                        </p>
-
-                        <span>
-                            1 Appointment
-                        </span>
-
-                    </div>
-
-                </div>
-
+            <div class="no-records" id="noPhotos">
+                No reference photos found.
             </div>
 
         </section>
@@ -420,87 +305,27 @@
     </main>
 
 
-    <script>
+    <!-- ==================================================
+         IMAGE PREVIEW MODAL
+         ================================================== -->
 
-        const searchInput =
-            document.getElementById("searchInput");
+    <div id="imageModal" class="image-modal">
 
-        const statusFilter =
-            document.getElementById("statusFilter");
+        <div class="image-modal-content">
 
-        const rows =
-            document.querySelectorAll("#recordsTable tr");
+            <button type="button" id="closeImageModal" class="image-modal-close">
+                &times;
+            </button>
 
-        const noRecords =
-            document.getElementById("noRecords");
+            <img id="imagePreview" src="" alt="Reference photo">
 
+        </div>
 
-        function filterRecords() {
-
-            const search =
-                searchInput.value.toLowerCase();
-
-            const status =
-                statusFilter.value;
-
-            let visible = 0;
+    </div>
 
 
-            rows.forEach(row => {
-
-                const text =
-                    row.textContent.toLowerCase();
-
-                const statusText =
-                    row.querySelector(".status")
-                        .textContent.trim();
-
-
-                const matchesSearch =
-                    text.includes(search);
-
-                const matchesStatus =
-                    status === "all" ||
-                    statusText === status;
-
-
-                if (
-                    matchesSearch &&
-                    matchesStatus
-                ) {
-
-                    row.style.display = "";
-
-                    visible++;
-
-                } else {
-
-                    row.style.display = "none";
-
-                }
-
-            });
-
-
-            noRecords.style.display =
-                visible === 0
-                    ? "block"
-                    : "none";
-        }
-
-
-        searchInput.addEventListener(
-            "input",
-            filterRecords
-        );
-
-        statusFilter.addEventListener(
-            "change",
-            filterRecords
-        );
-
-    </script>
+    <!-- Isang script lang - walang inline loadReports() para walang away -->
+    <script src="/js/report.js"></script>
 
 </body>
 </html>
-

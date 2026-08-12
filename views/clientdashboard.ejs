@@ -3,45 +3,753 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="/css/clientdashboard.css">
-    <title>Tattoo Home-Based Management System</title>
+    <title>NEONRONIN · Client Dashboard</title>
 
-    <link rel="stylesheet" href="style.css">
+    <style>
+        /* ===== RESET & BASE ===== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', 'Arial Black', sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* ===== BACKGROUND WITH LOGO - LARGER ===== */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                radial-gradient(ellipse at 50% 50%, rgba(255, 0, 50, 0.08) 0%, transparent 70%),
+                radial-gradient(ellipse at 50% 50%, rgba(255, 0, 50, 0.03) 0%, transparent 40%);
+            z-index: -2;
+        }
+
+        /* Logo as background - centered, circular, and LARGER */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 800px;
+            height: 800px;
+            background-image: url('/images/TotatsSkinArtTattoo.jpg');
+            background-size: cover;
+            background-position: center;
+            border-radius: 50%;
+            opacity: 0.12;
+            z-index: -1;
+            filter: blur(3px);
+            -webkit-filter: blur(3px);
+            animation: pulseGlow 10s ease-in-out infinite alternate;
+            box-shadow: 0 0 100px rgba(255, 0, 51, 0.05);
+        }
+
+        @keyframes pulseGlow {
+            0% { 
+                opacity: 0.08;
+                transform: translate(-50%, -50%) scale(1);
+                filter: blur(3px);
+            }
+            100% { 
+                opacity: 0.18;
+                transform: translate(-50%, -50%) scale(1.03);
+                filter: blur(2px);
+            }
+        }
+
+        /* ===== SCROLLBAR ===== */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0a0a0a;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #ff0033;
+            border-radius: 3px;
+        }
+
+        /* ===== NEON GLOW EFFECTS ===== */
+        .neon-text {
+            text-shadow: 0 0 10px rgba(255, 0, 51, 0.5), 0 0 20px rgba(255, 0, 51, 0.3), 0 0 40px rgba(255, 0, 51, 0.1);
+        }
+
+        .neon-border {
+            border: 1px solid rgba(255, 0, 51, 0.3);
+            box-shadow: 0 0 20px rgba(255, 0, 51, 0.05), inset 0 0 20px rgba(255, 0, 51, 0.02);
+        }
+
+        /* ===== NAVBAR ===== */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 50px;
+            background: rgba(10, 10, 10, 0.92);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 0, 51, 0.2);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 0 30px rgba(255, 0, 51, 0.05);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            font-size: 22px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            color: #fff;
+            text-transform: uppercase;
+        }
+
+        .logo img {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid rgba(255, 0, 51, 0.4);
+            box-shadow: 0 0 20px rgba(255, 0, 51, 0.15);
+        }
+
+        .logo span {
+            color: #ff0033;
+            text-shadow: 0 0 20px rgba(255, 0, 51, 0.4);
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+            gap: 35px;
+            align-items: center;
+        }
+
+        .nav-links a {
+            color: #aaa;
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: #ff0033;
+            transition: width 0.3s ease;
+            box-shadow: 0 0 10px rgba(255, 0, 51, 0.5);
+        }
+
+        .nav-links a:hover {
+            color: #fff;
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        .nav-links a.logout-link {
+            color: #ff0033;
+            border: 1px solid rgba(255, 0, 51, 0.3);
+            padding: 8px 20px;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-links a.logout-link:hover {
+            background: rgba(255, 0, 51, 0.1);
+            border-color: #ff0033;
+            box-shadow: 0 0 30px rgba(255, 0, 51, 0.1);
+        }
+
+        /* ===== CONTAINER ===== */
+        .container {
+            max-width: 1100px;
+            margin: 40px auto;
+            padding: 0 25px;
+        }
+
+        /* ===== WELCOME SECTION ===== */
+        .welcome {
+            padding: 40px 45px;
+            background: rgba(10, 10, 10, 0.75);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 8px;
+            border-left: 3px solid #ff0033;
+            margin-bottom: 35px;
+            box-shadow: 0 0 40px rgba(255, 0, 51, 0.03);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .welcome::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 70% 30%, rgba(255, 0, 51, 0.03), transparent 60%);
+            pointer-events: none;
+        }
+
+        .welcome h1 {
+            font-size: 34px;
+            font-weight: 900;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            position: relative;
+            z-index: 1;
+        }
+
+        .welcome h1 span {
+            color: #ff0033;
+            text-shadow: 0 0 30px rgba(255, 0, 51, 0.3);
+        }
+
+        .welcome p {
+            color: #888;
+            font-size: 16px;
+            letter-spacing: 1px;
+            margin-top: 6px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* ===== DASHBOARD CARD ===== */
+        .dashboard-card {
+            background: rgba(10, 10, 10, 0.75);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 8px;
+            padding: 50px 45px;
+            margin-bottom: 35px;
+            text-align: center;
+            border: 1px solid rgba(255, 0, 51, 0.08);
+            box-shadow: 0 0 40px rgba(255, 0, 51, 0.02);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dashboard-card::before {
+            content: '';
+            position: absolute;
+            top: -100%;
+            left: -100%;
+            width: 300%;
+            height: 300%;
+            background: conic-gradient(from 0deg at 50% 50%, transparent, rgba(255, 0, 51, 0.02), transparent, rgba(255, 0, 51, 0.02), transparent);
+            animation: rotateGlow 20s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes rotateGlow {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .card-content {
+            position: relative;
+            z-index: 1;
+        }
+
+        .dashboard-card h2 {
+            font-size: 28px;
+            font-weight: 900;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #fff;
+            margin-bottom: 12px;
+        }
+
+        .dashboard-card h2::after {
+            content: '⚡';
+            margin-left: 10px;
+            color: #ff0033;
+        }
+
+        .dashboard-card p {
+            color: #888;
+            font-size: 15px;
+            letter-spacing: 0.5px;
+            max-width: 500px;
+            margin: 0 auto 25px;
+        }
+
+        .dashboard-card button {
+            background: transparent;
+            color: #fff;
+            border: 1px solid #ff0033;
+            padding: 14px 45px;
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .dashboard-card button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 0, 51, 0.2), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .dashboard-card button:hover::before {
+            left: 100%;
+        }
+
+        .dashboard-card button:hover {
+            background: rgba(255, 0, 51, 0.1);
+            box-shadow: 0 0 40px rgba(255, 0, 51, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* ===== APPOINTMENTS TABLE ===== */
+        .dashboard-section {
+            background: rgba(10, 10, 10, 0.75);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            border-radius: 8px;
+            padding: 35px 40px;
+            border: 1px solid rgba(255, 0, 51, 0.06);
+            box-shadow: 0 0 40px rgba(255, 0, 51, 0.02);
+        }
+
+        .dashboard-section h2 {
+            font-size: 20px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #fff;
+            margin-bottom: 22px;
+        }
+
+        .dashboard-section h2::before {
+            content: '⛩️ ';
+            font-size: 18px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        thead {
+            border-bottom: 1px solid rgba(255, 0, 51, 0.15);
+        }
+
+        thead th {
+            padding: 14px 16px;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #666;
+        }
+
+        tbody td {
+            padding: 14px 16px;
+            font-size: 14px;
+            color: #ccc;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+        }
+
+        tbody tr:hover td {
+            background: rgba(255, 0, 51, 0.03);
+        }
+
+        /* Status Badges */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 14px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .status-badge.pending {
+            background: rgba(255, 165, 0, 0.15);
+            color: #ffa500;
+            border: 1px solid rgba(255, 165, 0, 0.2);
+        }
+
+        .status-badge.confirmed {
+            background: rgba(0, 200, 100, 0.15);
+            color: #00cc66;
+            border: 1px solid rgba(0, 200, 100, 0.2);
+        }
+
+        .status-badge.completed {
+            background: rgba(0, 100, 255, 0.15);
+            color: #4488ff;
+            border: 1px solid rgba(0, 100, 255, 0.2);
+        }
+
+        .status-badge.cancelled {
+            background: rgba(255, 0, 51, 0.15);
+            color: #ff0033;
+            border: 1px solid rgba(255, 0, 51, 0.2);
+        }
+
+        /* ===== MODAL ===== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .modal-content {
+            background: #121212;
+            width: 620px;
+            max-width: 95%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border-radius: 8px;
+            padding: 35px 40px;
+            border: 1px solid rgba(255, 0, 51, 0.1);
+            box-shadow: 0 0 60px rgba(255, 0, 51, 0.05);
+            animation: slideUp 0.3s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(30px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 0, 51, 0.1);
+        }
+
+        .modal-header h2 {
+            font-size: 22px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #fff;
+        }
+
+        .modal-header h2::before {
+            content: '⚡ ';
+            color: #ff0033;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 28px;
+            cursor: pointer;
+            color: #666;
+            transition: color 0.3s;
+            padding: 0 8px;
+        }
+
+        .close-btn:hover {
+            color: #ff0033;
+        }
+
+        /* ===== FORM ===== */
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 700;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #888;
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 4px;
+            color: #e0e0e0;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: rgba(255, 0, 51, 0.3);
+            background: rgba(255, 255, 255, 0.06);
+            box-shadow: 0 0 20px rgba(255, 0, 51, 0.03);
+        }
+
+        .form-group input::placeholder,
+        .form-group textarea::placeholder {
+            color: #444;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .form-group select option {
+            background: #1a1a1a;
+            color: #e0e0e0;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 15px;
+            margin-top: 28px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        .modal-actions button {
+            flex: 1;
+            padding: 13px;
+            border: none;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .cancel-btn {
+            background: transparent;
+            color: #888;
+            border: 1px solid rgba(255, 255, 255, 0.06) !important;
+        }
+
+        .cancel-btn:hover {
+            background: rgba(255, 255, 255, 0.04);
+            color: #fff;
+        }
+
+        .submit-btn {
+            background: #ff0033;
+            color: #fff;
+            border: 1px solid #ff0033 !important;
+            box-shadow: 0 0 30px rgba(255, 0, 51, 0.05);
+        }
+
+        .submit-btn:hover {
+            background: #cc0028;
+            box-shadow: 0 0 50px rgba(255, 0, 51, 0.1);
+            transform: translateY(-2px);
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 1024px) {
+            body::after {
+                width: 600px;
+                height: 600px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                flex-direction: column;
+                gap: 15px;
+                padding: 15px 20px;
+            }
+
+            .nav-links {
+                flex-wrap: wrap;
+                justify-content: center;
+                gap: 18px;
+            }
+
+            .nav-links a {
+                font-size: 11px;
+            }
+
+            .container {
+                padding: 0 15px;
+                margin: 25px auto;
+            }
+
+            .welcome {
+                padding: 25px 25px;
+            }
+
+            .welcome h1 {
+                font-size: 24px;
+            }
+
+            .dashboard-card {
+                padding: 30px 25px;
+            }
+
+            .dashboard-card h2 {
+                font-size: 20px;
+            }
+
+            .dashboard-section {
+                padding: 20px 15px;
+            }
+
+            table {
+                font-size: 12px;
+            }
+
+            thead th,
+            tbody td {
+                padding: 10px 8px;
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                padding: 25px 20px;
+            }
+
+            .modal-actions {
+                flex-direction: column;
+            }
+
+            body::after {
+                width: 450px;
+                height: 450px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .logo {
+                font-size: 16px;
+            }
+
+            .logo img {
+                width: 32px;
+                height: 32px;
+            }
+
+            .nav-links {
+                gap: 12px;
+            }
+
+            .nav-links a {
+                font-size: 10px;
+                letter-spacing: 1px;
+            }
+
+            .dashboard-card button {
+                padding: 12px 25px;
+                font-size: 12px;
+            }
+
+            body::after {
+                width: 300px;
+                height: 300px;
+            }
+        }
+    </style>
 </head>
 
 <body>
 
+    <!-- ===== NAVBAR ===== -->
     <nav class="navbar">
 
         <div class="logo">
+            <img src="/images/TotatsSkinArtTattoo.jpg" alt="Totats Skin Art Tattoo Logo">
             Totats<span>Skin Art Tattoo</span>
         </div>
 
         <ul class="nav-links">
             <li><a href="/Photos">Photos</a></li>
             <li><a href="/aboutus">About Us</a></li>
-            <li><a href="/logout">Logout</a></li>
+            <li><a href="/logout" class="logout-link">Logout</a></li>
         </ul>
 
     </nav>
 
-
+    <!-- ===== MAIN ===== -->
     <main class="container">
 
+        <!-- Welcome -->
         <section class="welcome">
             <h1>Welcome, <span id="usernameDisplay">Client</span>!</h1>
-            <p>Manage your tattoo appointments.</p>
         </section>
 
-
+        <!-- Book Card -->
         <section class="dashboard-card">
 
             <div class="card-content">
-                <h2>Book Your Tattoo Appointment</h2>
+                <h2>Book Your Tattoo</h2>
 
                 <p>
-                    Schedule an appointment to an tattoo artist
-                    and choose your preferred date and time.
+                    Schedule an appointment to Totats
+                    and bring your vision to life.
                 </p>
 
                 <button type="button" onclick="openAppointmentModal()">
@@ -51,7 +759,7 @@
 
         </section>
 
-
+        <!-- Appointments Table -->
         <section class="dashboard-section">
 
             <h2>My Appointments</h2>
@@ -69,7 +777,7 @@
                 </thead>
 
                 <tbody id="appointmentsBody">
-                    <!-- Appointments will be loaded here dynamically -->
+                    <!-- Appointments loaded dynamically -->
                 </tbody>
 
             </table>
@@ -78,87 +786,46 @@
 
     </main>
 
-
+    <!-- ===== MODAL ===== -->
     <div id="appointmentModal" class="modal">
 
         <div class="modal-content">
 
             <div class="modal-header">
                 <h2>Book an Appointment</h2>
-
-                <button type="button"
-                        class="close-btn"
-                        onclick="closeAppointmentModal()">
-                    &times;
-                </button>
+                <button type="button" class="close-btn" onclick="closeAppointmentModal()">&times;</button>
             </div>
-
 
             <form id="appointmentForm">
 
                 <div class="form-group">
                     <label for="clientName">Full Name</label>
-                    <input
-                        type="text"
-                        id="clientName"
-                        name="clientName"
-                        placeholder="Enter your full name"
-                        required
-                    >
+                    <input type="text" id="clientName" name="clientName" placeholder="Enter your full name" required>
                 </div>
-
 
                 <div class="form-group">
                     <label for="phone">Contact Number</label>
-                    <input
-                        type="tel"
-                        id="phone"
-                        name="phone"
-                        placeholder="Enter your contact number"
-                        required
-                    >
+                    <input type="tel" id="phone" name="phone" placeholder="Enter your contact number" required>
                 </div>
-
 
                 <div class="form-group">
                     <label for="artist">Tattoo Artist</label>
-
-                    <select id="artist" name="artist">
-                    </select>
+                    <select id="artist" name="artist"></select>
                 </div>
-
 
                 <div class="form-row">
-
                     <div class="form-group">
                         <label for="date">Appointment Date</label>
-
-                        <input
-                            type="date"
-                            id="date"
-                            name="date"
-                            required
-                        >
+                        <input type="date" id="date" name="date" required>
                     </div>
-
-
                     <div class="form-group">
                         <label for="time">Appointment Time</label>
-
-                        <input
-                            type="time"
-                            id="time"
-                            name="time"
-                            required
-                        >
+                        <input type="time" id="time" name="time" required>
                     </div>
-
                 </div>
-
 
                 <div class="form-group">
                     <label for="tattooType">Tattoo Type</label>
-
                     <select id="tattooType" name="tattooType" required>
                         <option value="">Select Tattoo Type</option>
                         <option value="Traditional">Traditional</option>
@@ -169,48 +836,19 @@
                     </select>
                 </div>
 
-
                 <div class="form-group">
                     <label for="description">Tattoo Description</label>
-
-                    <textarea
-                        id="description"
-                        name="description"
-                        rows="4"
-                        placeholder="Describe your desired tattoo..."
-                    ></textarea>
+                    <textarea id="description" name="description" rows="4" placeholder="Describe your desired tattoo..."></textarea>
                 </div>
-
 
                 <div class="form-group">
-                    <label for="reference">
-                        Reference Photo
-                    </label>
-
-                    <input
-                        type="file"
-                        id="reference"
-                        name="reference"
-                        accept="image/*"
-                    >
+                    <label for="reference">Reference Photo</label>
+                    <input type="file" id="reference" name="reference" accept="image/*">
                 </div>
 
-
                 <div class="modal-actions">
-
-                    <button
-                        type="button"
-                        class="cancel-btn"
-                        onclick="closeAppointmentModal()">
-                        Cancel
-                    </button>
-
-                    <button
-                        type="submit"
-                        class="submit-btn">
-                        Book Appointment
-                    </button>
-
+                    <button type="button" class="cancel-btn" onclick="closeAppointmentModal()">Cancel</button>
+                    <button type="submit" class="submit-btn">⚡ Book Appointment</button>
                 </div>
 
             </form>
@@ -219,9 +857,8 @@
 
     </div>
 
-
+    <!-- ===== SCRIPTS ===== -->
     <script>
-
         function openAppointmentModal() {
             document.getElementById("appointmentModal").style.display = "flex";
         }
@@ -231,20 +868,13 @@
         }
 
         window.onclick = function(event) {
-
             const modal = document.getElementById("appointmentModal");
-
             if (event.target === modal) {
                 modal.style.display = "none";
             }
-
         };
-
     </script>
 
-    <!-- ================================================== -->
-    <!-- ADD CLIENTDASHBOARD.JS -->
-    <!-- ================================================== -->
     <script src="/js/clientdashboard.js"></script>
 
 </body>

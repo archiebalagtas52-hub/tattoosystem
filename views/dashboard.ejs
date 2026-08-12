@@ -12,6 +12,7 @@
     <nav class="navbar">
 
         <div class="logo">
+            <img src="/images/TotatsSkinArtTattoo.jpg" alt="Totats Skin Art Tattoo Logo">
             Totats<span>Skin Art Tattoo</span>
         </div>
 
@@ -28,46 +29,177 @@
     <main class="dashboard-main">
 
         <section class="tattoo-gallery">
-
+    
             <h2 class="section-title">Recent Tattoo Works</h2>
-
+    
             <div class="gallery-grid">
+    
+                <!-- NECK -->
+                <figure class="gallery-item">
+                    <img src="/images/Necktattoo.jpg" alt="Neck tattoo" loading="lazy">
+                    <figcaption>Neck Tattoo</figcaption>
+                </figure>
+    
+                <!-- CHEST -->
+                <figure class="gallery-item">
+                    <img src="/images/Chesttattoo.jpg" alt="Chest tattoo" loading="lazy">
+                    <figcaption>Chest Tattoo</figcaption>
+                </figure>
+    
+                <!-- SHOULDER -->
+                <figure class="gallery-item">
+                    <img src="/images/Shoulder Half Sleeve.jpg" alt="Shoulder tattoo" loading="lazy">
+                    <figcaption>Shoulder Tattoo</figcaption>
+                </figure>
 
                 <figure class="gallery-item">
-                    <img src="/images/tattoo1.jpg" alt="Sleeve tattoo" loading="lazy">
+                    <img src="/images/ShouldertoNeckTattoo.jpg" alt="Shoulder tattoo" loading="lazy">
+                    <figcaption>Shoulder to Neck Tattoo</figcaption>
+                </figure>
+    
+                <!-- FULL SLEEVE -->
+                <figure class="gallery-item">
+                    <img src="/images/tattoo1.jpg" alt="Full sleeve tattoo" loading="lazy">
                     <figcaption>Full Sleeve</figcaption>
                 </figure>
-
+    
+                <!-- HALF SLEEVE -->
                 <figure class="gallery-item">
-                    <img src="/images/tattoo2.jpg" alt="Back piece tattoo" loading="lazy">
-                    <figcaption>Back Piece</figcaption>
+                    <img src="/images/HalfSleeveTattoo.jpg" alt="Half sleeve tattoo" loading="lazy">
+                    <figcaption>Half Sleeve</figcaption>
+                </figure>
+    
+                <!-- INNER ARM -->
+                <figure class="gallery-item">
+                    <img src="/images/tattoo6.jpg" alt="Inner arm tattoo" loading="lazy">
+                    <figcaption>Inner Arm</figcaption>
+                </figure>
+    
+                <!-- FOREARM -->
+                <figure class="gallery-item">
+                    <img id="tattooImage" src="/images/ForearmFullSleeve.jpg" alt="Back Piece">
+                    <figcaption>
+                        Fore Arm
+                        <br>
+                        <span class="category-choices"> 
+                            Category: <select id="categorySelect" onchange="changeImage()">
+                                <option value="ForearmFullSleeve">Full Sleeve</option>
+                                <option value="ArmbandTattoo">Half Sleeve</option>
+                                <option value="ForearmMinimalist">Minimalist</option>
+                                <option value="AngelForearmTattoo">Angel</option>
+                            </select>
+                        </span>
+                    </figcaption>
+                </figure>
+    
+                <!-- WRIST -->
+                <figure class="gallery-item">
+                    <img src="/images/Wristtattoo.jpg" alt="Wrist tattoo" loading="lazy">
+                    <figcaption>Wrist Tattoo</figcaption>
+                </figure>
+    
+                <!-- FULL BACK -->
+                <figure class="gallery-item">
+                    <img src="/images/Fullbacktattoo.jpg" alt="Full back tattoo" loading="lazy">
+                    <figcaption>Full Back</figcaption>
+                </figure>
+    
+                <!-- HALF BACK -->
+                <figure class="gallery-item">
+                    <img src="/images/HalfBackTattoo.jpg" alt="Half back tattoo" loading="lazy">
+                    <figcaption>Half Back</figcaption>
+                </figure>
+    
+                <!-- SPINE -->
+                <figure class="gallery-item">
+                    <img src="/images/SpineTattoo.jpg" alt="Spine tattoo" loading="lazy">
+                    <figcaption>Spine Tattoo</figcaption>
+                </figure>
+    
+                <!-- LOWER BACK -->
+                <figure class="gallery-item">
+                    <img src="/images/LowerBack Tattoo.jpg" alt="Lower back tattoo" loading="lazy">
+                    <figcaption>Lower Back</figcaption>
+                </figure>
+    
+                <!-- RIBCAGE -->
+                <figure class="gallery-item">
+                    <img src="/images/LowerBackTattoo.jpg" alt="Rib cage tattoo" loading="lazy">
+                    <figcaption>Rib Cage Tattoo</figcaption>
+                </figure>
+    
+                <!-- ARMBAND -->
+                <figure class="gallery-item">
+                    <img src="/images/ArmbandTattoo.jpg" alt="Armband tattoo" loading="lazy">
+                    <figcaption>Armband Tattoo</figcaption>
+                </figure>
+                
+                <!-- MINIMALIST LINE 1 -->
+                <figure class="gallery-item">
+                    <img id="minimalistImage" src="/images/MinimalistLetterTattoo.jpg" alt="Minimalist Tattoo">
+                    <figcaption>
+                        Minimalist
+                        <br>
+                        <span class="category-choices"> 
+                            Category: <select id="minimalistSelect" onchange="changeMinimalistImage()">
+                                <option value="MinimalistLetterTattoo.jpg">Minimalist Letter Tattoo</option>
+                                <option value="MinimalistneckTattoo.jpg">Minimalist Cross Tattoo</option>
+                                <option value="MinimalistButterfly.jpg">Minimalist Butterfly</option>
+                                <option value="MinimalistCoupledesign.jpg">Minimalist Couple Design</option>
+                            </select>
+                        </span>
+                    </figcaption>
                 </figure>
 
+                <!-- LEGS -->
                 <figure class="gallery-item">
-                    <img src="/images/tattoo3.jpg" alt="Minimalist line tattoo" loading="lazy">
-                    <figcaption>Minimalist Line</figcaption>
+                    <img id="minimalistImage" src="/images/legsTattoo.jpg" alt="Legs Tattoo">
+                    <figcaption>
+                        Legs
+                        <br>
+                        <span class="category-choices"> 
+                            Category: <select id="minimalistSelect" onchange="changeMinimalistImage()">
+                                <option value="legsTattoo.jpg">Leg Dragon Tattoo</option>
+                                <option value="legsTattoo2.jpg">Face with Roses Tattoo Leg</option>
+                            </select>
+                        </span>
+                    </figcaption>
                 </figure>
-
+                
+                <!-- LOWER LEGS -->
                 <figure class="gallery-item">
-                    <img src="/images/tattoo4.jpg" alt="Traditional tattoo" loading="lazy">
-                    <figcaption>Traditional</figcaption>
+                    <img src="/images/LowerLegTattoo.jpg" alt="Lower legs tattoo" loading="lazy">
+                    <figcaption>Lower Legs</figcaption>
                 </figure>
-
+    
+                <!-- ANKLE -->
                 <figure class="gallery-item">
-                    <img src="/images/tattoo5.jpg" alt="Blackwork tattoo" loading="lazy">
-                    <figcaption>Blackwork</figcaption>
+                    <img src="/images/tattoo1.jpg" alt="Ankle tattoo" loading="lazy">
+                    <figcaption>Ankle Tattoo</figcaption>
                 </figure>
-
+    
+                <!-- BACK PIECE -->
                 <figure class="gallery-item">
-                    <img src="/images/tattoo6.jpg" alt="Realism tattoo" loading="lazy">
-                    <figcaption>Realism</figcaption>
+                    <img id="tattooImage" src="/images/Fullbacktattoo.jpg" alt="Back Piece">
+                    <figcaption>
+                        Back Piece
+                        <br>
+                        <span class="category-choices"> 
+                            Category: <select id="categorySelect" onchange="changeImage()">
+                                <option value="Fullbacktattoo">Full Back</option>
+                                <option value="SpineTattoo">Spine Tattoo</option>
+                                <option value="LowerBackTattoo">Lower Back Tattoo</option>
+                                <option value="Halfback">Half Back</option>
+                                <option value="Minimalist">Minimalist</option>
+                            </select>
+                        </span>
+                    </figcaption>
                 </figure>
-
+    
             </div>
-
         </section>
-
     </main>
 
+    <script src="/js/dashboard.js"></script>
 </body>
 </html>

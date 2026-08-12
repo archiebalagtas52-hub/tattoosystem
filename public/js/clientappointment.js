@@ -1,317 +1,569 @@
-// ======================================================
-// APPOINTMENTS - loaded from MongoDB via /api/appointments
-// ======================================================
+// clientappointment.js
+// Admin page - lahat ng booking ng lahat ng client galing MongoDB.
 
-let appointments = [];
-let rescheduleId = null;
+document.addEventListener('DOMContentLoaded', function () {
 
-const tableBody = document.getElementById('appointmentTable');
-const totalBox = document.getElementById('totalAppointments');
-const noAppointments = document.getElementById('noAppointments');
-const searchInput = document.getElementById('searchInput');
-const statusFilter = document.getElementById('statusFilter');
-const dateFilter = document.getElementById('dateFilter');
+    var REFRESH_MS = 15000;
 
+    var tableBody = document.getElementById('appointmentTable');
+    var emptyMessage = document.getElementById('noAppointments');
+    var totalBox = document.getElementById('totalAppointments');
+    var searchInput = document.getElementById('searchInput');
+    var statusFilter = document.getElementById('statusFilter');
+    var dateFilter = document.getElementById('dateFilter');
 
-// ======================================================
-// HELPERS
-// ======================================================
+    var rescheduleModal = document.getElementById('rescheduleModal');
+    var rescheduleForm = document.getElementById('rescheduleForm');
+    var modalClient = document.getElementById('modalClient');
+    var modalArtist = document.getElementById('modalArtist');
+    var newDate = document.getElementById('newDate');
+    var newTime = document.getElementById('newTime');
+    var conflictMessage = document.getElementById('conflictMessage');
 
-function escapeHtml(value) {
-    return String(value == null ? '' : value)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
-}
+    var messageModal = document.getElementById('messageModal');
+    var messageIcon = document.getElementById('messageIcon');
+    var messageTitle = document.getElementById('messageTitle');
+    var messageText = document.getElementById('messageText');
 
-function formatDate(value) {
+    var imageModal = document.getElementById('imageModal');
+    var imagePreview = document.getElementById('imagePreview');
+    var paymentModal = document.getElementById('paymentModal');
 
-    if (!value) {
-        return '';
-    }
-
-    const parts = value.split('-');
-    const date = new Date(parts[0], Number(parts[1]) - 1, parts[2]);
-
-    if (isNaN(date.getTime())) {
-        return value;
-    }
-
-    return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    });
-}
-
-function formatTime(value) {
-
-    if (!value) {
-        return '';
-    }
-
-    const parts = value.split(':');
-    let hour = Number(parts[0]);
-    const minute = parts[1];
-    const suffix = hour >= 12 ? 'PM' : 'AM';
-
-    hour = hour % 12;
-
-    if (hour === 0) {
-        hour = 12;
-    }
-
-    return hour + ':' + minute + ' ' + suffix;
-}
-
-function showMessage(title, text, isError) {
-
-    document.getElementById('messageIcon').textContent = isError ? '!' : '✓';
-    document.getElementById('messageTitle').textContent = title;
-    document.getElementById('messageText').textContent = text;
-    document.getElementById('messageModal').classList.add('show');
-    document.getElementById('messageModal').style.display = 'flex';
-}
-
-function closeMessage() {
-    document.getElementById('messageModal').classList.remove('show');
-    document.getElementById('messageModal').style.display = 'none';
-}
-
-
-// ======================================================
-// LOAD FROM DATABASE
-// ======================================================
-
-async function loadAppointments() {
-
-    try {
-
-        const response = await fetch('/api/appointments');
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-            throw new Error(data.message || 'Failed to load appointments');
-        }
-
-        appointments = data.appointments;
-
-        renderAppointments();
-
-    } catch (error) {
-
-        console.error('Load appointments error:', error);
-
-        tableBody.innerHTML = '';
-        noAppointments.textContent = 'Could not load appointments from the server.';
-        noAppointments.style.display = 'block';
-    }
-}
-
-
-// ======================================================
-// RENDER
-// ======================================================
-
-function getFiltered() {
-
-    const search = searchInput.value.trim().toLowerCase();
-    const status = statusFilter.value;
-    const date = dateFilter.value;
-
-    return appointments.filter(function (item) {
-
-        if (search && item.client.toLowerCase().indexOf(search) === -1) {
-            return false;
-        }
-
-        if (status !== 'all' && item.status !== status) {
-            return false;
-        }
-
-        if (date && item.date !== date) {
-            return false;
-        }
-
-        return true;
-    });
-}
-
-function renderAppointments() {
-
-    const rows = getFiltered();
-
-    totalBox.textContent = rows.length;
-
-    if (rows.length === 0) {
-        tableBody.innerHTML = '';
-        noAppointments.textContent = 'No appointments found.';
-        noAppointments.style.display = 'block';
+    if (!tableBody) {
         return;
     }
 
-    noAppointments.style.display = 'none';
+    var allAppointments = [];
+    var rescheduleId = null;
+    var paymentId = null;
 
-    tableBody.innerHTML = rows.map(function (item) {
+    // ==================================================
+    // HELPERS
+    // ==================================================
 
-        const statusClass = item.status.toLowerCase();
+    function escapeHtml(value) {
+        return String(value === null || value === undefined ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
 
-        let actions = '';
+    // YYYY-MM-DD sa local time, para tugma sa <input type="date">
+    function toInputDate(value) {
+        var parsed = new Date(value);
+        if (isNaN(parsed.getTime())) {
+            return '';
+        }
+        var month = String(parsed.getMonth() + 1).padStart(2, '0');
+        var day = String(parsed.getDate()).padStart(2, '0');
+        return parsed.getFullYear() + '-' + month + '-' + day;
+    }
 
-        if (item.status === 'Pending') {
-            actions += '<button class="confirm-btn" onclick="confirmAppointment(this)">Confirm</button>';
+    function formatDate(value) {
+        var parsed = new Date(value);
+        return isNaN(parsed.getTime())
+            ? 'N/A'
+            : parsed.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    // ==================================================
+    // REFERENCE PHOTO
+    // Kahit anong pangalan ng field sa MongoDB, hahanapin dito.
+    // ==================================================
+
+    var IMAGE_KEYS = [
+        'reference',
+        'referencePhoto',
+        'referenceImage',
+        'refPhoto',
+        'image',
+        'imageUrl',
+        'imagePath',
+        'photo',
+        'photoUrl',
+        'picture',
+        'file',
+        'filename',
+        'attachment',
+        'design'
+    ];
+
+    function imageUrl(appointment) {
+        var raw = '';
+
+        for (var i = 0; i < IMAGE_KEYS.length; i++) {
+            var value = appointment[IMAGE_KEYS[i]];
+
+            if (typeof value === 'string' && value.trim()) {
+                raw = value.trim();
+                break;
+            }
+
+            // { path: "..." } o { url: "..." } o { filename: "..." }
+            if (value && typeof value === 'object') {
+                var nested = value.url || value.path || value.filename || value.secure_url;
+                if (typeof nested === 'string' && nested.trim()) {
+                    raw = nested.trim();
+                    break;
+                }
+            }
         }
 
-        if (item.status !== 'Cancelled') {
-            actions += '<button class="reschedule-btn" onclick="openReschedule(this)">Reschedule</button>';
-            actions += '<button class="cancel-btn" onclick="cancelAppointment(this)">Cancel</button>';
+        if (!raw) {
+            return '';
         }
 
-        return '' +
-            '<tr data-id="' + item._id + '"' +
-            ' data-client="' + escapeHtml(item.client) + '"' +
-            ' data-artist="' + escapeHtml(item.artist) + '"' +
-            ' data-date="' + escapeHtml(item.date) + '"' +
-            ' data-time="' + escapeHtml(item.time) + '"' +
-            ' data-status="' + escapeHtml(item.status) + '">' +
-                '<td><strong>' + escapeHtml(item.client) + '</strong></td>' +
-                '<td>' + escapeHtml(item.contact) + '</td>' +
-                '<td>' + escapeHtml(item.artist) + '</td>' +
-                '<td>' + formatDate(item.date) + '</td>' +
-                '<td>' + formatTime(item.time) + '</td>' +
-                '<td>' + escapeHtml(item.service) + '</td>' +
-                '<td><span class="status ' + statusClass + '">' + escapeHtml(item.status) + '</span></td>' +
-                '<td class="actions">' + actions + '</td>' +
-            '</tr>';
+        // base64 o kumpletong URL - gamitin as is
+        if (/^(data:|https?:\/\/)/i.test(raw)) {
+            return raw;
+        }
 
-    }).join('');
-}
+        // Windows path -> forward slashes, tapos alisin ang "public/"
+        var clean = raw.replace(/\\/g, '/').replace(/^\.?\/?public\//i, '');
 
+        if (clean.charAt(0) === '/') {
+            return clean;
+        }
 
-// ======================================================
-// ACTIONS
-// ======================================================
+        // filename lang - nasa /uploads/ ang default na folder
+        if (clean.indexOf('/') === -1) {
+            return '/uploads/' + clean;
+        }
 
-function rowId(button) {
-    return button.closest('tr').dataset.id;
-}
-
-async function updateStatus(id, status) {
-
-    const response = await fetch('/api/appointments/' + id + '/status', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: status })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok || !data.success) {
-        throw new Error(data.message || 'Update failed');
+        return '/' + clean;
     }
 
-    return data.appointment;
-}
+    function request(url, options) {
+        var opts = options || {};
+        opts.credentials = 'same-origin';
 
-async function confirmAppointment(button) {
+        return fetch(url, opts).then(function (response) {
+            if (response.status === 401 || response.status === 403) {
+                window.location.href = '/login';
+                return null;
+            }
 
-    try {
-        await updateStatus(rowId(button), 'Confirmed');
-        await loadAppointments();
-        showMessage('Appointment Confirmed', 'The appointment has been confirmed.', false);
-    } catch (error) {
-        showMessage('Update Failed', error.message, true);
-    }
-}
-
-async function cancelAppointment(button) {
-
-    if (!confirm('Cancel this appointment?')) {
-        return;
-    }
-
-    try {
-        await updateStatus(rowId(button), 'Cancelled');
-        await loadAppointments();
-        showMessage('Appointment Cancelled', 'The appointment has been cancelled.', false);
-    } catch (error) {
-        showMessage('Update Failed', error.message, true);
-    }
-}
-
-
-// ======================================================
-// RESCHEDULE MODAL
-// ======================================================
-
-function openReschedule(button) {
-
-    const row = button.closest('tr');
-
-    rescheduleId = row.dataset.id;
-
-    document.getElementById('modalClient').textContent = row.dataset.client;
-    document.getElementById('modalArtist').textContent = row.dataset.artist;
-    document.getElementById('newDate').value = row.dataset.date;
-    document.getElementById('newTime').value = row.dataset.time;
-    document.getElementById('conflictMessage').textContent = '';
-
-    const modal = document.getElementById('rescheduleModal');
-    modal.classList.add('show');
-    modal.style.display = 'flex';
-}
-
-function closeReschedule() {
-
-    rescheduleId = null;
-
-    const modal = document.getElementById('rescheduleModal');
-    modal.classList.remove('show');
-    modal.style.display = 'none';
-}
-
-document.getElementById('rescheduleForm').addEventListener('submit', async function (e) {
-
-    e.preventDefault();
-
-    const conflictMessage = document.getElementById('conflictMessage');
-    conflictMessage.textContent = '';
-
-    try {
-
-        const response = await fetch('/api/appointments/' + rescheduleId + '/reschedule', {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                date: document.getElementById('newDate').value,
-                time: document.getElementById('newTime').value
-            })
+            return response.text().then(function (body) {
+                try {
+                    return JSON.parse(body);
+                } catch (e) {
+                    console.error('Non-JSON response from ' + url + ' (HTTP ' + response.status + '):',
+                        body.slice(0, 500));
+                    return {
+                        success: false,
+                        message: 'Server error (HTTP ' + response.status + ') on ' + url + '.'
+                    };
+                }
+            });
         });
+    }
 
-        const data = await response.json();
+    function showMessage(title, text, ok) {
+        if (!messageModal) {
+            alert(title + '\n' + text);
+            return;
+        }
+        if (messageIcon) {
+            messageIcon.innerHTML = ok ? '&#10003;' : '&#10007;';
+            messageIcon.className = 'message-icon ' + (ok ? 'success' : 'error');
+        }
+        messageTitle.textContent = title;
+        messageText.textContent = text;
+        messageModal.style.display = 'flex';
+    }
 
-        if (!response.ok || !data.success) {
-            conflictMessage.textContent = data.message || 'Reschedule failed.';
+    // ==================================================
+    // RENDER
+    // ==================================================
+
+    function visibleAppointments() {
+        var term = (searchInput && searchInput.value || '').trim().toLowerCase();
+        var status = statusFilter ? statusFilter.value : 'all';
+        var day = dateFilter ? dateFilter.value : '';
+
+        return allAppointments.filter(function (a) {
+            if (status !== 'all' && (a.status || 'Pending') !== status) {
+                return false;
+            }
+
+            if (day && toInputDate(a.date) !== day) {
+                return false;
+            }
+
+            if (term) {
+                var haystack = [a.clientName, a.username, a.phone, a.artist, a.tattooType]
+                    .join(' ')
+                    .toLowerCase();
+
+                if (haystack.indexOf(term) === -1) {
+                    return false;
+                }
+            }
+
+            return true;
+        });
+    }
+
+    function render() {
+        var rows = visibleAppointments();
+
+        if (totalBox) {
+            totalBox.textContent = rows.length;
+        }
+
+        if (!rows.length) {
+            tableBody.innerHTML = '';
+            if (emptyMessage) {
+                emptyMessage.style.display = 'block';
+            }
             return;
         }
 
-        closeReschedule();
-        await loadAppointments();
-        showMessage('Appointment Updated', 'The appointment has been rescheduled.', false);
+        if (emptyMessage) {
+            emptyMessage.style.display = 'none';
+        }
 
-    } catch (error) {
-        conflictMessage.textContent = 'Something went wrong. Please try again.';
+        tableBody.innerHTML = rows.map(function (a) {
+            var status = a.status || 'Pending';
+            var payment = a.payment || 'Unpaid';
+            var id = escapeHtml(a._id);
+            var image = imageUrl(a);
+            var closed = status === 'Cancelled' || status === 'Completed';
+
+            var actions = '';
+
+            if (!closed) {
+                if (status === 'Pending') {
+                    actions += '<button type="button" class="confirm-btn" data-action="Confirmed" data-id="' + id + '">Confirm</button> ';
+                }
+                actions += '<button type="button" class="reschedule-btn" data-action="reschedule" data-id="' + id + '">Reschedule</button> ';
+                actions += '<button type="button" class="complete-btn" data-action="Completed" data-id="' + id + '">Complete</button> ';
+                actions += '<button type="button" class="cancel-btn" data-action="Cancelled" data-id="' + id + '">Cancel</button>';
+            } else {
+                actions = '&mdash;';
+            }
+
+            // Thumbnail na clickable - kung wala, "No image"
+            var imageCell = image
+                ? '<button type="button" class="view-img" data-img="' + escapeHtml(image) + '" title="View reference photo">' +
+                      '<img src="' + escapeHtml(image) + '" alt="Reference" class="thumb" ' +
+                          'onerror="this.style.display=\'none\'">' +
+                      '<span>View</span>' +
+                  '</button>'
+                : '<span class="no-image">No image</span>';
+
+            return '<tr>' +
+                '<td>' + escapeHtml(a.clientName) + '</td>' +
+                '<td>' + escapeHtml(a.phone) + '</td>' +
+                '<td>' + escapeHtml(a.artist) + '</td>' +
+                '<td>' + formatDate(a.date) + '</td>' +
+                '<td>' + escapeHtml(a.time) + '</td>' +
+                '<td>' + escapeHtml(a.tattooType) + '</td>' +
+                '<td>' + imageCell + '</td>' +
+                '<td>' +
+                    '<button type="button" class="payment payment-' + payment.toLowerCase().replace(/\s+/g, '-') + '" ' +
+                        'data-pay-id="' + id + '" title="Click to change payment">' +
+                        escapeHtml(payment) +
+                    '</button>' +
+                '</td>' +
+                '<td><span class="status status-' + status.toLowerCase() + '">' + escapeHtml(status) + '</span></td>' +
+                '<td class="actions">' + actions + '</td>' +
+            '</tr>';
+        }).join('');
     }
+
+    // ==================================================
+    // LOAD
+    // ==================================================
+
+    function load() {
+        return request('/api/appointments/admin/all')
+            .then(function (data) {
+                if (!data) {
+                    return;
+                }
+
+                if (data.success) {
+                    allAppointments = data.appointments || [];
+                    render();
+                } else {
+                    console.error(data.message);
+                }
+            })
+            .catch(function (error) {
+                console.error('Error loading appointments:', error);
+            });
+    }
+
+    // ==================================================
+    // ACTIONS
+    // ==================================================
+
+    function updateStatus(id, status) {
+        request('/api/appointments/admin/' + encodeURIComponent(id) + '/status', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: status })
+        })
+            .then(function (data) {
+                if (!data) {
+                    return;
+                }
+
+                if (data.success) {
+                    showMessage('Appointment Updated', 'Status is now ' + status + '.', true);
+                    load();
+                } else {
+                    showMessage('Update Failed', data.message || 'Please try again.', false);
+                }
+            })
+            .catch(function (error) {
+                console.error('Error:', error);
+                showMessage('Update Failed', 'An error occurred. Please try again.', false);
+            });
+    }
+
+    function updatePayment(id, payment) {
+        request('/api/appointments/admin/' + encodeURIComponent(id) + '/payment', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ payment: payment })
+        })
+            .then(function (data) {
+                window.closePayment();
+
+                if (!data) {
+                    return;
+                }
+
+                if (data.success) {
+                    showMessage('Payment Updated', 'Payment is now ' + payment + '.', true);
+                    load();
+                } else {
+                    showMessage('Update Failed', data.message || 'Please try again.', false);
+                }
+            })
+            .catch(function (error) {
+                console.error('Error:', error);
+                window.closePayment();
+                showMessage('Update Failed', 'An error occurred. Please try again.', false);
+            });
+    }
+
+    function openReschedule(appointment) {
+        rescheduleId = appointment._id;
+
+        if (modalClient) { modalClient.textContent = appointment.clientName || ''; }
+        if (modalArtist) { modalArtist.textContent = appointment.artist || ''; }
+        if (conflictMessage) { conflictMessage.textContent = ''; conflictMessage.style.display = 'none'; }
+
+        if (newDate) {
+            newDate.min = toInputDate(new Date());
+            newDate.value = toInputDate(appointment.date);
+        }
+        if (newTime) {
+            newTime.value = appointment.time || '';
+        }
+
+        rescheduleModal.style.display = 'flex';
+    }
+
+    function openImage(src) {
+        if (imagePreview) {
+            imagePreview.src = src;
+        }
+
+        if (imageModal) {
+            imageModal.style.display = 'flex';
+        } else {
+            window.open(src, '_blank');
+        }
+    }
+
+    tableBody.addEventListener('click', function (event) {
+
+        // ---------- VIEW IMAGE ----------
+        var imageButton = event.target.closest('.view-img');
+
+        if (imageButton) {
+            openImage(imageButton.getAttribute('data-img'));
+            return;
+        }
+
+        // ---------- PAYMENT ----------
+        var paymentButton = event.target.closest('[data-pay-id]');
+
+        if (paymentButton) {
+            paymentId = paymentButton.getAttribute('data-pay-id');
+
+            if (paymentModal) {
+                paymentModal.style.display = 'flex';
+            } else {
+                var choice = prompt('Payment (GCash / Cash / Unpaid):', 'GCash');
+                if (choice) {
+                    updatePayment(paymentId, choice);
+                }
+            }
+            return;
+        }
+
+        // ---------- STATUS / RESCHEDULE ----------
+        var button = event.target.closest('[data-action]');
+
+        if (!button) {
+            return;
+        }
+
+        var id = button.getAttribute('data-id');
+        var action = button.getAttribute('data-action');
+
+        if (action === 'reschedule') {
+            var appointment = allAppointments.find(function (a) { return a._id === id; });
+            if (appointment) {
+                openReschedule(appointment);
+            }
+            return;
+        }
+
+        if (action === 'Cancelled' && !confirm('Cancel this appointment?')) {
+            return;
+        }
+
+        updateStatus(id, action);
+    });
+
+    if (paymentModal) {
+        paymentModal.querySelectorAll('[data-pay]').forEach(function (button) {
+            button.addEventListener('click', function () {
+                if (!paymentId) {
+                    return;
+                }
+                updatePayment(paymentId, button.getAttribute('data-pay'));
+            });
+        });
+    }
+
+    if (rescheduleForm) {
+        rescheduleForm.addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            if (!rescheduleId) {
+                return;
+            }
+
+            if (conflictMessage) {
+                conflictMessage.textContent = '';
+                conflictMessage.style.display = 'none';
+            }
+
+            request('/api/appointments/admin/' + encodeURIComponent(rescheduleId) + '/reschedule', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ date: newDate.value, time: newTime.value })
+            })
+                .then(function (data) {
+                    if (!data) {
+                        return;
+                    }
+
+                    if (data.success) {
+                        window.closeReschedule();
+                        showMessage('Appointment Updated', 'The schedule has been updated.', true);
+                        load();
+                    } else if (conflictMessage) {
+                        conflictMessage.textContent = data.message || 'Failed to reschedule.';
+                        conflictMessage.style.display = 'block';
+                    } else {
+                        showMessage('Reschedule Failed', data.message || 'Please try again.', false);
+                    }
+                })
+                .catch(function (error) {
+                    console.error('Error:', error);
+                    showMessage('Reschedule Failed', 'An error occurred. Please try again.', false);
+                });
+        });
+    }
+
+    // ==================================================
+    // MODAL HELPERS (tinatawag ng inline onclick sa EJS)
+    // ==================================================
+
+    window.closeReschedule = function () {
+        rescheduleId = null;
+        if (rescheduleModal) {
+            rescheduleModal.style.display = 'none';
+        }
+        if (rescheduleForm) {
+            rescheduleForm.reset();
+        }
+    };
+
+    window.closeMessage = function () {
+        if (messageModal) {
+            messageModal.style.display = 'none';
+        }
+    };
+
+    window.closeImage = function () {
+        if (imageModal) {
+            imageModal.style.display = 'none';
+        }
+        if (imagePreview) {
+            imagePreview.src = '';
+        }
+    };
+
+    window.closePayment = function () {
+        paymentId = null;
+        if (paymentModal) {
+            paymentModal.style.display = 'none';
+        }
+    };
+
+    window.addEventListener('click', function (event) {
+        if (event.target === rescheduleModal) {
+            window.closeReschedule();
+        }
+        if (event.target === messageModal) {
+            window.closeMessage();
+        }
+        if (event.target === imageModal) {
+            window.closeImage();
+        }
+        if (event.target === paymentModal) {
+            window.closePayment();
+        }
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape') {
+            window.closeReschedule();
+            window.closeMessage();
+            window.closeImage();
+            window.closePayment();
+        }
+    });
+
+    // ==================================================
+    // FILTERS
+    // ==================================================
+
+    if (searchInput) { searchInput.addEventListener('input', render); }
+    if (statusFilter) { statusFilter.addEventListener('change', render); }
+    if (dateFilter) { dateFilter.addEventListener('change', render); }
+
+    // ==================================================
+    // INIT
+    // ==================================================
+
+    load();
+    setInterval(load, REFRESH_MS);
+
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) {
+            load();
+        }
+    });
 });
-
-
-// ======================================================
-// FILTERS + INITIAL LOAD
-// ======================================================
-
-searchInput.addEventListener('input', renderAppointments);
-statusFilter.addEventListener('change', renderAppointments);
-dateFilter.addEventListener('change', renderAppointments);
-
-loadAppointments();

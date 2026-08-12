@@ -8,6 +8,57 @@
 
     <link rel="stylesheet" href="/css/inventory.css">
 
+    <style>
+        /* ===== BACKGROUND IMAGE WITH BLUR ===== */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('/images/TotatsSkinArtTattoo.jpg'); /* Palitan ng path ng logo mo */
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0.15; /* Para hindi masyadong kita */
+            filter: blur(8px); /* Para blurry */
+            -webkit-filter: blur(8px);
+            z-index: -1; /* Sa likod ng lahat */
+            pointer-events: none; /* Para hindi maka-interfere sa clicks */
+        }
+
+        /* Para sure na nasa ibabaw ang content */
+        .container,
+        .navbar {
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Optional: Para mas maganda ang background ng content */
+        .container {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(2px);
+            border-radius: 10px;
+            margin: 20px auto;
+            max-width: 1400px;
+            padding: 40px;
+        }
+
+        .inventory-card {
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .summary-card {
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        /* Para sa modal */
+        .modal-content {
+            background: rgba(255, 255, 255, 0.98);
+        }
+    </style>
+
 </head>
 
 <body>
@@ -15,6 +66,8 @@
     <nav class="navbar">
 
         <div class="logo">
+            <!-- ===== LOGO IMAGE - PALITAN ANG PATH ===== -->
+            <img src="/images/TotatsSkinArtTattoo.jpg" alt="Totats Skin Art Tattoo Logo">
             Totats<span>Skin Art Tattoo</span>
         </div>
 
@@ -34,11 +87,10 @@
         <div class="page-header">
 
             <div>
-                <h1>Inventory</h1>
-                <p>Monitor tattoo supplies and equipment.</p>
+                <h1>Inventory Management</h1>
             </div>
 
-            <button class="add-btn" onclick="openInventoryModal()">
+            <button class="add-btn" id="openInventoryModalBtn">
                 + Add Inventory
             </button>
 
@@ -84,10 +136,9 @@
                 type="text"
                 id="searchInventory"
                 placeholder="Search inventory..."
-                onkeyup="filterTable()"
             >
 
-            <select id="categoryFilter" onchange="filterTable()">
+            <select id="categoryFilter">
                 <option value="all">All Categories</option>
                 <option value="Ink">Ink</option>
                 <option value="Needles">Needles</option>
@@ -97,14 +148,14 @@
                 <option value="Other">Other</option>
             </select>
 
-            <select id="stockFilter" onchange="filterTable()">
+            <select id="stockFilter">
                 <option value="all">All Stock Status</option>
                 <option value="In Stock">In Stock</option>
                 <option value="Low Stock">Low Stock</option>
                 <option value="Out of Stock">Out of Stock</option>
             </select>
 
-            <button class="refresh-btn" onclick="loadInventory()">
+            <button class="refresh-btn" id="refreshInventoryBtn">
                 Refresh
             </button>
 
@@ -159,30 +210,14 @@
                     <p>Add a new tattoo supply or equipment.</p>
                 </div>
 
-                <button class="close-btn" onclick="closeInventoryModal()">
+                <button class="close-btn" id="closeInventoryModalBtn">
                     &times;
                 </button>
 
             </div>
 
 
-            <form id="inventoryForm" onsubmit="saveItem(event)">
-
-                <div class="form-group">
-
-                    <label for="itemName">
-                        Item Name
-                    </label>
-
-                    <input
-                        type="text"
-                        id="itemName"
-                        placeholder="Enter item name"
-                        required
-                    >
-
-                </div>
-
+            <form id="inventoryForm">
 
                 <div class="form-group">
 
@@ -203,6 +238,30 @@
                 </div>
 
 
+                <div class="form-group">
+
+                    <label for="itemName">
+                        Item Name
+                    </label>
+
+                    <!-- Options are filled by /js/inventory.js based on the category.
+                         Picking an item also auto-selects its category. -->
+                    <select id="itemName" required>
+                        <option value="">Select Item Name</option>
+                    </select>
+
+                    <!-- Shown only when Category = Other -->
+                    <input
+                        type="text"
+                        id="itemNameOther"
+                        placeholder="Enter item name"
+                        style="display: none;"
+                    >
+
+                </div>
+
+
+                <!-- ===== ITO ANG BINAGO - MAGKASAMA NA SILA SA ISANG ROW ===== -->
                 <div class="form-row">
 
                     <div class="form-group">
@@ -221,57 +280,24 @@
 
                     </div>
 
-
                     <div class="form-group">
 
-                        <label for="itemPrice">
-                            Price
+                        <label for="minimumStock">
+                            Minimum Stock Level
                         </label>
 
                         <input
                             type="number"
-                            id="itemPrice"
+                            id="minimumStock"
                             min="0"
-                            step="0.01"
-                            placeholder="0.00"
+                            placeholder="Enter minimum stock"
                             required
                         >
 
                     </div>
 
                 </div>
-
-
-                <div class="form-group">
-
-                    <label for="minimumStock">
-                        Minimum Stock Level
-                    </label>
-
-                    <input
-                        type="number"
-                        id="minimumStock"
-                        min="0"
-                        placeholder="Enter minimum stock"
-                        required
-                    >
-
-                </div>
-
-
-                <div class="form-group">
-
-                    <label for="itemSupplier">
-                        Supplier (Optional)
-                    </label>
-
-                    <input
-                        type="text"
-                        id="itemSupplier"
-                        placeholder="Enter supplier name"
-                    >
-
-                </div>
+                <!-- ===== HANGGANG DITO ===== -->
 
 
                 <div class="modal-actions">
@@ -279,7 +305,7 @@
                     <button
                         type="button"
                         class="cancel-btn"
-                        onclick="closeInventoryModal()">
+                        id="cancelInventoryBtn">
                         Cancel
                     </button>
 
@@ -298,221 +324,7 @@
     </div>
 
 
-    <script>
-        var API_URL = '/api/inventory';
-
-        // Load inventory items
-        async function loadInventory() {
-            try {
-                var response = await fetch(API_URL);
-                var items = await response.json();
-
-                var tbody = document.getElementById('inventoryTable');
-
-                if (!items.length) {
-                    tbody.innerHTML = `
-                        <tr>
-                            <td colspan="7" style="text-align: center; padding: 40px; color: #666;">
-                                No items in inventory. Click "Add Inventory" to add one.
-                            </td>
-                        </tr>
-                    `;
-                    updateStats(items);
-                    return;
-                }
-
-                var html = '';
-                for (var i = 0; i < items.length; i++) {
-                    var item = items[i];
-                    var statusClass = item.status.toLowerCase().split(' ').join('-');
-                    html += `
-                        <tr
-                            data-name="${escapeHtml(item.name)}"
-                            data-category="${escapeHtml(item.category)}"
-                            data-status="${escapeHtml(item.status)}"
-                        >
-                            <td><strong>${escapeHtml(item.name)}</strong></td>
-                            <td>${escapeHtml(item.category)}</td>
-                            <td>${item.quantity}</td>
-                            <td>₱${Number(item.price).toFixed(2)}</td>
-                            <td>${item.reorderLevel}</td>
-                            <td>
-                                <span class="stock-status ${statusClass}">
-                                    ${item.status}
-                                </span>
-                            </td>
-                            <td>
-                                <button class="action-btn add-qty-btn" title="Add stock"
-                                    onclick="updateQuantity('${item._id}', 1)">+</button>
-                                <button class="action-btn remove-qty-btn" title="Remove stock"
-                                    ${item.quantity <= 0 ? 'disabled' : ''}
-                                    onclick="updateQuantity('${item._id}', -1)">&minus;</button>
-                            </td>
-                        </tr>
-                    `;
-                }
-
-                tbody.innerHTML = html;
-
-                updateStats(items);
-                filterTable();
-
-            } catch (error) {
-                console.error('Error loading inventory:', error);
-                document.getElementById('inventoryTable').innerHTML = `
-                    <tr>
-                        <td colspan="7" style="text-align: center; padding: 40px; color: #b33c3c;">
-                            Error loading inventory
-                        </td>
-                    </tr>
-                `;
-            }
-        }
-
-        // Update statistics
-        function updateStats(items) {
-            var inStock = 0;
-            var lowStock = 0;
-            var outOfStock = 0;
-
-            for (var i = 0; i < items.length; i++) {
-                var status = items[i].status;
-                if (status === 'In Stock') {
-                    inStock++;
-                } else if (status === 'Low Stock') {
-                    lowStock++;
-                } else if (status === 'Out of Stock') {
-                    outOfStock++;
-                }
-            }
-
-            document.getElementById('totalItems').textContent = items.length;
-            document.getElementById('availableItems').textContent = inStock;
-            document.getElementById('lowStockItems').textContent = lowStock;
-            document.getElementById('outOfStockItems').textContent = outOfStock;
-        }
-
-        // Open add modal
-        function openInventoryModal() {
-            document.getElementById('inventoryForm').reset();
-            document.getElementById('inventoryModal').classList.add('active');
-        }
-
-        // Close modal
-        function closeInventoryModal() {
-            document.getElementById('inventoryModal').classList.remove('active');
-        }
-
-        // Save new item
-        async function saveItem(event) {
-            event.preventDefault();
-
-            var data = {
-                name: document.getElementById('itemName').value.trim(),
-                category: document.getElementById('itemCategory').value,
-                quantity: parseInt(document.getElementById('itemQuantity').value, 10),
-                price: parseFloat(document.getElementById('itemPrice').value),
-                reorderLevel: parseInt(document.getElementById('minimumStock').value, 10),
-                supplier: document.getElementById('itemSupplier').value.trim()
-            };
-
-            if (!data.name || !data.category || isNaN(data.quantity) || isNaN(data.price) || isNaN(data.reorderLevel)) {
-                alert('Please fill in all required fields');
-                return;
-            }
-
-            try {
-                var response = await fetch(API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
-                });
-
-                if (response.ok) {
-                    closeInventoryModal();
-                    loadInventory();
-                } else {
-                    var error = await response.json();
-                    alert('Error: ' + (error.error || 'Unknown error'));
-                }
-            } catch (error) {
-                console.error('Error saving item:', error);
-                alert('Error saving item');
-            }
-        }
-
-        // The + and - buttons
-        async function updateQuantity(id, change) {
-            try {
-                var response = await fetch(API_URL + '/' + id + '/quantity', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ change: change })
-                });
-
-                if (response.ok) {
-                    loadInventory();
-                } else {
-                    var error = await response.json();
-                    alert('Error: ' + (error.error || 'Could not update quantity'));
-                }
-            } catch (error) {
-                console.error('Error updating quantity:', error);
-                alert('Error updating quantity');
-            }
-        }
-
-        // Filter table
-        function filterTable() {
-            var search = document.getElementById('searchInventory').value.toLowerCase();
-            var category = document.getElementById('categoryFilter').value;
-            var status = document.getElementById('stockFilter').value;
-            var rows = document.querySelectorAll('#inventoryTable tr');
-
-            for (var i = 0; i < rows.length; i++) {
-                var row = rows[i];
-
-                if (!row.getAttribute('data-name')) {
-                    continue;
-                }
-
-                var name = row.getAttribute('data-name').toLowerCase();
-                var cat = row.getAttribute('data-category');
-                var stat = row.getAttribute('data-status');
-
-                var show = true;
-
-                if (search && name.indexOf(search) === -1) {
-                    show = false;
-                }
-                if (category !== 'all' && cat !== category) {
-                    show = false;
-                }
-                if (status !== 'all' && stat !== status) {
-                    show = false;
-                }
-
-                row.style.display = show ? '' : 'none';
-            }
-        }
-
-        // Escape HTML
-        function escapeHtml(text) {
-            var div = document.createElement('div');
-            div.textContent = text == null ? '' : text;
-            return div.innerHTML;
-        }
-
-        // Close modal when clicking outside
-        document.getElementById('inventoryModal').addEventListener('click', function (e) {
-            if (e.target === this) {
-                closeInventoryModal();
-            }
-        });
-
-        // Load inventory on page load
-        loadInventory();
-    </script>
+    <script src="/js/inventory.js"></script>
 
 </body>
 </html>

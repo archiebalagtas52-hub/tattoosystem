@@ -1,277 +1,390 @@
-// clientdashboard.js
+// public/js/clientdashboard.js
+//
+// Client page - booking + sariling appointments galing MongoDB.
+//
+// Reference Photo:
+//   - Kapag pumili ang client ng design sa /photos, dadalhin siya sa
+//     /clientdashboard?design=<title>&image=/uploads/photos/xxx.jpg
+//   - KUSA nitong ginagawa ang preview sa tabi ng file input, kahit
+//     hindi mo binago ang clientdashboard.ejs.
+//
+// Endpoints:
+//     GET  /api/appointments        -> sariling appointments
+//     POST /api/appointments        -> booking (multipart + referenceUrl)
 
-document.addEventListener('DOMContentLoaded', function() {
-    
+document.addEventListener('DOMContentLoaded', function () {
+
+    var REFRESH_MS = 15000;
+
+    var ARTISTS = ['Totats'];
+
+    var tableBody = document.getElementById('appointmentsBody');
+    var form = document.getElementById('appointmentForm');
+    var artistSelect = document.getElementById('artist');
+    var dateInput = document.getElementById('date');
+    var tattooTypeSelect = document.getElementById('tattooType');
+
+    // Hinahanap ang file input kahit ano ang id
+    var fileInput =
+        document.getElementById('reference') ||
+        (form ? form.querySelector('input[type="file"]') : null);
+
     // ==================================================
-    // GET USER INFORMATION FROM COOKIES
+    // HELPERS
     // ==================================================
-    
-    function getCookie(name) {
-        var value = "; " + document.cookie;
-        var parts = value.split("; " + name + "=");
-        if (parts.length === 2) {
-            return parts.pop().split(";").shift();
-        }
-        return null;
+
+    function escapeHtml(value) {
+        return String(value === null || value === undefined ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
     }
-    
-    var username = getCookie("username");
-    var userId = getCookie("userId");
-    var role = getCookie("role");
-    
-    // Display username in welcome message
-    var welcomeElement = document.getElementById("usernameDisplay");
-    if (welcomeElement && username) {
-        welcomeElement.textContent = username;
+
+    function toInputDate(value) {
+        var parsed = new Date(value);
+
+        if (isNaN(parsed.getTime())) {
+            return '';
+        }
+
+        var month = String(parsed.getMonth() + 1).padStart(2, '0');
+        var day = String(parsed.getDate()).padStart(2, '0');
+
+        return parsed.getFullYear() + '-' + month + '-' + day;
     }
-    
-    // ==================================================
-    // FETCH USER APPOINTMENTS FROM MONGODB
-    // ==================================================
-    
-    function fetchAppointments() {
-        var appointmentsTable = document.getElementById("appointmentsBody");
-        
-        if (!appointmentsTable) {
-            return;
-        }
-        
-        // Show loading state
-        appointmentsTable.innerHTML = '<tr><td colspan="5" style="text-align:center;">Loading appointments...</td></tr>';
-        
-        fetch('/api/appointments', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(function(response) {
-            if (response.status === 401) {
-                window.location.href = '/login';
-                return;
-            }
-            return response.json();
-        })
-        .then(function(data) {
-            if (data && data.success) {
-                displayAppointments(data.appointments);
-            } else if (data && data.message) {
-                appointmentsTable.innerHTML = '<tr><td colspan="5" style="text-align:center;">' + data.message + '</td></tr>';
-            }
-        })
-        .catch(function(error) {
-            console.error('Error fetching appointments:', error);
-            appointmentsTable.innerHTML = '<tr><td colspan="5" style="text-align:center;">Error loading appointments. Please try again.</td></tr>';
-        });
-    }
-    
-    // ==================================================
-    // DISPLAY APPOINTMENTS IN TABLE
-    // ==================================================
-    
-    function displayAppointments(appointments) {
-        var appointmentsTable = document.getElementById("appointmentsBody");
-        
-        if (!appointmentsTable) {
-            return;
-        }
-        
-        if (!appointments || appointments.length === 0) {
-            appointmentsTable.innerHTML = '<tr><td colspan="5" style="text-align:center;">No appointments found.</td></tr>';
-            return;
-        }
-        
-        var html = '';
-        
-        appointments.forEach(function(appointment) {
-            var statusClass = '';
-            var statusText = appointment.status || 'Pending';
-            
-            // Add status class for styling
-            if (statusText.toLowerCase() === 'pending') {
-                statusClass = 'status-pending';
-            } else if (statusText.toLowerCase() === 'approved') {
-                statusClass = 'status-approved';
-            } else if (statusText.toLowerCase() === 'completed') {
-                statusClass = 'status-completed';
-            } else if (statusText.toLowerCase() === 'cancelled') {
-                statusClass = 'status-cancelled';
-            }
-            
-            // Format date
-            var appointmentDate = appointment.date ? new Date(appointment.date) : new Date();
-            var formattedDate = appointmentDate.toLocaleDateString('en-US', {
+
+    function formatDate(value) {
+        var parsed = new Date(value);
+
+        return isNaN(parsed.getTime())
+            ? 'N/A'
+            : parsed.toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric'
             });
-            
-            // Format time
-            var formattedTime = appointment.time || 'N/A';
-            
-            html += '<tr>';
-            html += '<td>' + (appointment.artist || 'N/A') + '</td>';
-            html += '<td>' + formattedDate + '</td>';
-            html += '<td>' + formattedTime + '</td>';
-            html += '<td>' + (appointment.tattooType || 'N/A') + '</td>';
-            html += '<td class="' + statusClass + '">' + statusText + '</td>';
-            html += '</tr>';
-        });
-        
-        appointmentsTable.innerHTML = html;
     }
-    
-    // ==================================================
-    // BOOK APPOINTMENT
-    // ==================================================
-    
-    var appointmentForm = document.getElementById("appointmentForm");
-    
-    if (appointmentForm) {
-        appointmentForm.addEventListener("submit", function(event) {
-            event.preventDefault();
-            
-            var clientName = document.getElementById("clientName").value;
-            var phone = document.getElementById("phone").value;
-            var artist = document.getElementById("artist").value;
-            var date = document.getElementById("date").value;
-            var time = document.getElementById("time").value;
-            var tattooType = document.getElementById("tattooType").value;
-            var description = document.getElementById("description").value;
-            
-            // Client-side validation
-            if (!clientName || !phone || !artist || !date || !time || !tattooType) {
-                alert("Please complete all required fields.");
-                return;
+
+    function request(url, options) {
+        var opts = options || {};
+        opts.credentials = 'same-origin';
+
+        return fetch(url, opts).then(function (response) {
+            if (response.status === 401 || response.status === 403) {
+                window.location.href = '/login';
+                return null;
             }
-            
-            var appointmentData = {
-                clientName: clientName,
-                phone: phone,
-                artist: artist,
-                date: date,
-                time: time,
-                tattooType: tattooType,
-                description: description,
-                username: username,
-                userId: userId,
-                status: "Pending"
-            };
-            
-            fetch('/api/appointments', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(appointmentData)
-            })
-            .then(function(response) {
-                return response.json();
-            })
-            .then(function(data) {
-                if (data.success) {
-                    alert("Appointment booked successfully!");
-                    closeAppointmentModal();
-                    fetchAppointments(); // Refresh appointments
-                } else {
-                    alert(data.message || "Failed to book appointment.");
+
+            return response.text().then(function (body) {
+                try {
+                    return JSON.parse(body);
+                } catch (e) {
+                    console.error('Non-JSON response from ' + url +
+                        ' (HTTP ' + response.status + '):', body.slice(0, 500));
+
+                    return {
+                        success: false,
+                        message: 'Server error (HTTP ' + response.status + ') on ' + url + '.'
+                    };
                 }
-            })
-            .catch(function(error) {
-                console.error('Error:', error);
-                alert("An error occurred. Please try again.");
             });
         });
     }
-    
+
     // ==================================================
-    // CANCEL APPOINTMENT
+    // ARTIST OPTIONS + MIN DATE
     // ==================================================
-    
-    function cancelAppointment(appointmentId) {
-        if (!confirm("Are you sure you want to cancel this appointment?")) {
+
+    if (artistSelect && !artistSelect.options.length) {
+        artistSelect.innerHTML = ARTISTS.map(function (name) {
+            return '<option value="' + escapeHtml(name) + '">' + escapeHtml(name) + '</option>';
+        }).join('');
+    }
+
+    if (dateInput) {
+        dateInput.min = toInputDate(new Date());
+    }
+
+    // ==================================================
+    // REFERENCE PHOTO - napiling design galing sa /photos
+    // Kusang ginagawa ang UI, walang kailangang baguhin sa EJS.
+    // ==================================================
+
+    var chosenBox = null;
+    var chosenImage = null;
+    var chosenName = null;
+    var referenceUrlInput = null;
+
+    function injectStyles() {
+        if (document.getElementById('chosenDesignStyles')) {
             return;
         }
-        
-        fetch('/api/appointments/' + appointmentId, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
+
+        var style = document.createElement('style');
+        style.id = 'chosenDesignStyles';
+
+        style.textContent =
+            '.chosen-design{display:flex;align-items:center;gap:12px;padding:10px;' +
+            'margin-bottom:10px;border:1px solid #ddd;border-radius:8px;background:#fafafa}' +
+            '.chosen-design img{width:64px;height:64px;object-fit:cover;border-radius:6px}' +
+            '.chosen-design-info{display:flex;flex-direction:column;flex:1;font-size:13px}' +
+            '.chosen-design-remove{border:none;background:transparent;font-size:22px;' +
+            'line-height:1;cursor:pointer;color:#c0392b}';
+
+        document.head.appendChild(style);
+    }
+
+    function buildChosenUi() {
+        if (chosenBox || !form) {
+            return;
+        }
+
+        injectStyles();
+
+        // Hidden input na ipinapadala sa server
+        referenceUrlInput = document.getElementById('referenceUrl');
+
+        if (!referenceUrlInput) {
+            referenceUrlInput = document.createElement('input');
+            referenceUrlInput.type = 'hidden';
+            referenceUrlInput.id = 'referenceUrl';
+            referenceUrlInput.name = 'referenceUrl';
+            form.appendChild(referenceUrlInput);
+        }
+
+        chosenBox = document.createElement('div');
+        chosenBox.id = 'chosenDesign';
+        chosenBox.className = 'chosen-design';
+        chosenBox.style.display = 'none';
+
+        chosenBox.innerHTML =
+            '<img id="chosenDesignImage" src="" alt="Selected design">' +
+            '<div class="chosen-design-info">' +
+                '<strong id="chosenDesignName"></strong>' +
+                '<small>Selected from Photos Gallery</small>' +
+            '</div>' +
+            '<button type="button" id="clearChosenDesign" class="chosen-design-remove">&times;</button>';
+
+        // Ilalagay sa itaas mismo ng file input; kung wala, sa dulo ng form
+        if (fileInput && fileInput.parentNode) {
+            fileInput.parentNode.insertBefore(chosenBox, fileInput);
+        } else {
+            form.appendChild(chosenBox);
+        }
+
+        chosenImage = document.getElementById('chosenDesignImage');
+        chosenName = document.getElementById('chosenDesignName');
+
+        document.getElementById('clearChosenDesign')
+            .addEventListener('click', clearChosenDesign);
+    }
+
+    function showChosenDesign(title, image) {
+        buildChosenUi();
+
+        if (!chosenBox) {
+            return;
+        }
+
+        referenceUrlInput.value = image;
+        chosenImage.src = image;
+        chosenName.textContent = title || 'Selected design';
+        chosenBox.style.display = 'flex';
+
+        if (fileInput) {
+            fileInput.value = '';
+        }
+
+        // Itugma ang service sa design kung may ganoong option
+        if (tattooTypeSelect && title) {
+            for (var i = 0; i < tattooTypeSelect.options.length; i++) {
+                if (tattooTypeSelect.options[i].value.toLowerCase() === title.toLowerCase()) {
+                    tattooTypeSelect.selectedIndex = i;
+                    break;
+                }
             }
-        })
-        .then(function(response) {
-            return response.json();
-        })
-        .then(function(data) {
-            if (data.success) {
-                alert("Appointment cancelled successfully.");
-                fetchAppointments(); // Refresh appointments
-            } else {
-                alert(data.message || "Failed to cancel appointment.");
+        }
+    }
+
+    function clearChosenDesign() {
+        if (referenceUrlInput) {
+            referenceUrlInput.value = '';
+        }
+
+        if (chosenBox) {
+            chosenBox.style.display = 'none';
+        }
+
+        if (chosenImage) {
+            chosenImage.src = '';
+        }
+    }
+
+    // Kung mag-a-upload ng sariling larawan, iyon ang mananaig
+    if (fileInput) {
+        fileInput.addEventListener('change', function () {
+            if (fileInput.files && fileInput.files.length) {
+                clearChosenDesign();
             }
-        })
-        .catch(function(error) {
-            console.error('Error:', error);
-            alert("An error occurred. Please try again.");
         });
     }
-    
-    // ==================================================
-    // MODAL FUNCTIONS
-    // ==================================================
-    
-    function openAppointmentModal() {
-        var modal = document.getElementById("appointmentModal");
+
+    function openBookingModal() {
+        if (typeof window.openAppointmentModal === 'function') {
+            window.openAppointmentModal();
+            return;
+        }
+
+        // Fallback: hanapin ang modal na naglalaman ng form
+        var modal = document.getElementById('appointmentModal');
+
+        if (!modal && form) {
+            modal = form.closest('.modal');
+        }
+
         if (modal) {
-            modal.style.display = "flex";
-            // Pre-fill client name
-            var clientNameInput = document.getElementById("clientName");
-            if (clientNameInput && username) {
-                clientNameInput.value = username;
+            modal.style.display = 'flex';
+            modal.classList.add('active', 'show');
+        }
+    }
+
+    (function applyDesignFromUrl() {
+        var params = new URLSearchParams(window.location.search);
+        var image = params.get('image');
+
+        if (!image) {
+            return;
+        }
+
+        showChosenDesign(params.get('design') || '', image);
+        openBookingModal();
+    })();
+
+    // ==================================================
+    // MY APPOINTMENTS
+    // ==================================================
+
+    function render(appointments) {
+        if (!tableBody) {
+            return;
+        }
+
+        if (!appointments.length) {
+            tableBody.innerHTML =
+                '<tr><td colspan="5" style="text-align:center;">No appointments yet.</td></tr>';
+            return;
+        }
+
+        tableBody.innerHTML = appointments.map(function (a) {
+            var status = a.status || 'Pending';
+
+            return '<tr>' +
+                '<td>' + escapeHtml(a.artist) + '</td>' +
+                '<td>' + formatDate(a.date) + '</td>' +
+                '<td>' + escapeHtml(a.time) + '</td>' +
+                '<td>' + escapeHtml(a.tattooType) + '</td>' +
+                '<td><span class="status status-' + status.toLowerCase() + '">' +
+                    escapeHtml(status) +
+                '</span></td>' +
+            '</tr>';
+        }).join('');
+    }
+
+    function load() {
+        return request('/api/appointments')
+            .then(function (data) {
+                if (!data) {
+                    return;
+                }
+
+                if (data.success) {
+                    render(data.appointments || []);
+                } else {
+                    console.error(data.message);
+                }
+            })
+            .catch(function (error) {
+                console.error('Error loading appointments:', error);
+            });
+    }
+
+    // ==================================================
+    // BOOKING
+    // FormData - para talagang naipapadala ang reference photo.
+    // Huwag maglagay ng Content-Type header, awtomatiko iyon.
+    // ==================================================
+
+    if (form) {
+        form.addEventListener('submit', function (event) {
+            event.preventDefault();
+
+            var submitButton = form.querySelector('button[type="submit"]');
+
+            if (submitButton) {
+                submitButton.disabled = true;
             }
-        }
+
+            fetch('/api/appointments', {
+                method: 'POST',
+                credentials: 'same-origin',
+                body: new FormData(form)
+            })
+                .then(function (response) {
+                    if (response.status === 401 || response.status === 403) {
+                        window.location.href = '/login';
+                        return null;
+                    }
+
+                    return response.json();
+                })
+                .then(function (data) {
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                    }
+
+                    if (!data) {
+                        return;
+                    }
+
+                    if (!data.success) {
+                        alert(data.message || 'Booking failed. Please try again.');
+                        return;
+                    }
+
+                    form.reset();
+                    clearChosenDesign();
+
+                    if (typeof window.closeAppointmentModal === 'function') {
+                        window.closeAppointmentModal();
+                    }
+
+                    alert('Appointment booked! Please wait for the admin to confirm.');
+                    load();
+                })
+                .catch(function (error) {
+                    console.error('Error booking appointment:', error);
+
+                    if (submitButton) {
+                        submitButton.disabled = false;
+                    }
+
+                    alert('An error occurred. Please try again.');
+                });
+        });
     }
-    
-    function closeAppointmentModal() {
-        var modal = document.getElementById("appointmentModal");
-        if (modal) {
-            modal.style.display = "none";
-            // Reset form
-            var form = document.getElementById("appointmentForm");
-            if (form) {
-                form.reset();
-            }
+
+    // ==================================================
+    // INIT
+    // ==================================================
+
+    load();
+    setInterval(load, REFRESH_MS);
+
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) {
+            load();
         }
-    }
-    
-    // Close modal when clicking outside
-    window.onclick = function(event) {
-        var modal = document.getElementById("appointmentModal");
-        if (event.target === modal) {
-            closeAppointmentModal();
-        }
-    };
-    
-    // Make functions globally accessible
-    window.openAppointmentModal = openAppointmentModal;
-    window.closeAppointmentModal = closeAppointmentModal;
-    window.cancelAppointment = cancelAppointment;
-    
-    // ==================================================
-    // LOGOUT FUNCTION
-    // ==================================================
-    
-    function logout() {
-        if (confirm("Are you sure you want to logout?")) {
-            window.location.href = "/logout";
-        }
-    }
-    
-    window.logout = logout;
-    
-    // ==================================================
-    // INITIALIZE - FETCH APPOINTMENTS ON LOAD
-    // ==================================================
-    
-    fetchAppointments();
+    });
 });
