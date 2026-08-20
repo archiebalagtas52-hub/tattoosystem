@@ -63,7 +63,9 @@ const bookingSchema = new mongoose.Schema(
         userId: { type: String, required: true, index: true },
 
         status: { type: String, default: "Pending" },
-        payment: { type: String, default: "Unpaid" }
+        payment: { type: String, default: "Unpaid" },
+
+        inventoryConsumedAt: { type: Date, default: null }
     },
     { timestamps: true }
 );
@@ -72,7 +74,7 @@ const Booking =
     mongoose.models.Booking ||
     mongoose.model("Booking", bookingSchema, "appointments");
 
-const bookingUploadDir = path.join(process.cwd(), "public", "uploads");
+const bookingUploadDir = path.join(__dirname, "public", "uploads");
 
 fs.mkdirSync(bookingUploadDir, { recursive: true });
 
@@ -85,14 +87,86 @@ const bookingUpload = multer({
         }
     }),
     limits: { fileSize: 5 * 1024 * 1024 },
-    fileFilter: (req, file, cb) => cb(null, /^image\//.test(file.mimetype))
+    fileFilter: (req, file, cb) => {
+        if (/^image\//.test(file.mimetype)) {
+            return cb(null, true);
+        }
+
+        cb(new Error("Only image files are allowed."));
+    }
 });
+
+// Binabawasan ng 1 ang bawat consumable (inks, needles, gloves, etc.)
+// kapag natapos ang appointment. Idempotent - hindi doble ang bawas dahil
+// sa inventoryConsumedAt flag.
+function inventoryModel() {
+    if (mongoose.models.Inventory) {
+        return mongoose.models.Inventory;
+    }
+
+    const inventorySchema = new mongoose.Schema(
+        {
+            name: { type: String, required: true, trim: true },
+            category: { type: String, default: "Other" },
+            quantity: { type: Number, default: 0, min: 0 },
+            unit: { type: String, default: "pcs" },
+            reorderLevel: { type: Number, default: 5, min: 0 },
+            consumePerAppointment: { type: Boolean, default: true }
+        },
+        { timestamps: true }
+    );
+
+    return mongoose.model("Inventory", inventorySchema, "inventories");
+}
+
+async function consumeInventoryForAppointment(appointment) {
+    if (!appointment || appointment.inventoryConsumedAt) {
+        return { consumed: 0, skipped: true };
+    }
+
+    const Inventory = inventoryModel();
+
+    const result = await Inventory.updateMany(
+        { consumePerAppointment: true, quantity: { $gt: 0 } },
+        { $inc: { quantity: -1 } }
+    );
+
+    appointment.inventoryConsumedAt = new Date();
+
+    await appointment.save();
+
+    const consumed = result.modifiedCount || result.nModified || 0;
+
+    return { consumed, skipped: false };
+}
+
+function uploadReference(req, res, next) {
+    bookingUpload.single("reference")(req, res, (error) => {
+        if (!error) {
+            return next();
+        }
+
+        return res.status(400).json({
+            success: false,
+            message: error instanceof multer.MulterError
+                ? "Reference image is too large (max 5MB)."
+                : error.message
+        });
+    });
+}
 
 const SIZE_PRICES = { Small: 700, Medium: 1500, Large: 10000 };
 const CUSTOM_RATE_PER_SQ_INCH = 150;
 const CUSTOM_MINIMUM = 700;
 const FIXED_SIZE_BY_TYPE = { Minimalist: "Small" };
 const VALID_SIZE = ["Small", "Medium", "Large", "Custom"];
+const VALID_STATUS = [
+    "Pending",
+    "Confirmed",
+    "Rescheduled",
+    "Completed",
+    "Cancelled"
+];
 
 function computeAmount(size, width, height) {
     if (Object.prototype.hasOwnProperty.call(SIZE_PRICES, size)) {
@@ -242,7 +316,7 @@ bookingRouter.post("/:id/pay", requireLoginCookie, async (req, res) => {
         appointment.paymentAmount = paidBefore + payNow;
         appointment.balance = Math.max(total - appointment.paymentAmount, 0);
         appointment.paymentMethod = method;
-        appointment.payment = appointment.balance === 0 ? "Paid" : method;
+        appointment.payment = appointment.balance === 0 ? "Paid" : "Partial";
 
         await appointment.save();
 
@@ -257,10 +331,65 @@ bookingRouter.post("/:id/pay", requireLoginCookie, async (req, res) => {
     }
 });
 
+bookingRouter.patch("/:id/status", requireLoginCookie, async (req, res) => {
+    try {
+        if (req.user.role !== "admin") {
+            return res.status(403).json({
+                success: false,
+                message: "Admins only."
+            });
+        }
+
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid appointment id."
+            });
+        }
+
+        const status = (req.body.status || "").trim();
+
+        if (!VALID_STATUS.includes(status)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid appointment status."
+            });
+        }
+
+        const appointment = await Booking.findById(req.params.id);
+
+        if (!appointment) {
+            return res.status(404).json({
+                success: false,
+                message: "Appointment not found."
+            });
+        }
+
+        appointment.status = status;
+
+        await appointment.save();
+
+        let inventory = { consumed: 0, skipped: true };
+
+        if (status === "Completed") {
+            inventory = await consumeInventoryForAppointment(appointment);
+        }
+
+        return res.json({ success: true, appointment, inventory });
+
+    } catch (error) {
+        console.error("PATCH /api/appointments/:id/status", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to update appointment status."
+        });
+    }
+});
+
 bookingRouter.post(
     "/",
     requireLoginCookie,
-    bookingUpload.single("reference"),
+    uploadReference,
     async (req, res) => {
         try {
             const clientName = (req.body.clientName || "").trim();
@@ -364,7 +493,7 @@ bookingRouter.post(
 
             const payment = paymentAmount <= 0
                 ? "Unpaid"
-                : (balance === 0 ? "Paid" : paymentMethod);
+                : (balance === 0 ? "Paid" : "Partial");
 
             let reference = "";
 
@@ -416,10 +545,10 @@ bookingRouter.post(
 );
 
 app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/appointments", bookingRouter);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/appointments/admin", reportRoutes);
+app.use("/api/appointments", bookingRouter);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/photos", photoRoutes);
 

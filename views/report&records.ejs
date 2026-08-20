@@ -142,6 +142,107 @@
 
 
         <!-- ==================================================
+             INVENTORY MANAGEMENT
+             ================================================== -->
+
+        <section class="inventory-section">
+
+            <div class="section-header">
+            </div>
+
+
+            <div class="summary-grid inventory-summary">
+
+                <div class="summary-card">
+
+                    <div class="summary-icon">
+                        T
+                    </div>
+
+                    <div>
+                        <span>Total Items</span>
+                        <span id="totalItems">0</span>
+                    </div>
+
+                </div>
+
+
+                <div class="summary-card">
+
+                    <div class="summary-icon">
+                        S
+                    </div>
+
+                    <div>
+                        <span>In Stock</span>
+                        <span id="inStockItems">0</span>
+                    </div>
+
+                </div>
+
+
+                <div class="summary-card">
+
+                    <div class="summary-icon">
+                        L
+                    </div>
+
+                    <div>
+                        <span>Low Stock</span>
+                        <span id="lowStockItems">0</span>
+                    </div>
+
+                </div>
+
+
+                <div class="summary-card">
+
+                    <div class="summary-icon">
+                        O
+                    </div>
+
+                    <div>
+                        <span>Out of Stock</span>
+                        <span id="outOfStockItems">0</span>
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <div class="table-wrapper">
+
+                <table>
+
+                    <thead>
+
+                        <tr>
+                            <th>Item Name</th>
+                            <th>Category</th>
+                            <th>Quantity</th>
+                            <th>Unit</th>
+                            <th>Reorder Level</th>
+                            <th>Stock Status</th>
+                        </tr>
+
+                    </thead>
+
+                    <!-- Rows are rendered from MongoDB by /js/reportInventory.js -->
+                    <tbody id="inventoryTable"></tbody>
+
+                </table>
+
+            </div>
+
+            <div class="no-records" id="noInventory">
+                No inventory items found.
+            </div>
+
+        </section>
+
+
+        <!-- ==================================================
              APPOINTMENT RECORDS
              ================================================== -->
 
@@ -326,6 +427,7 @@
 
     <!-- Isang script lang - walang inline loadReports() para walang away -->
     <script src="/js/report.js"></script>
+    <script src="/js/reportInventory.js"></script>
 
 </body>
 </html>

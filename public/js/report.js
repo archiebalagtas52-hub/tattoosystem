@@ -20,8 +20,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var searchInput = document.getElementById('searchInput');
     var statusFilter = document.getElementById('statusFilter');
+
     var fromDate = document.getElementById('fromDate');
     var toDate = document.getElementById('toDate');
+
+    var STATUS_OPTIONS = [
+        'Pending',
+        'Confirmed',
+        'Rescheduled',
+        'Completed',
+        'Cancelled'
+    ];
 
     // ==================================================
     // HELPERS
@@ -201,8 +210,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<td>' + escapeHtml(a.tattooType) + '</td>' +
                 '<td><span class="payment payment-' + payment.toLowerCase() + '">' +
                     escapeHtml(payment) + '</span></td>' +
-                '<td><span class="status status-' + status.toLowerCase() + '">' +
-                    escapeHtml(status) + '</span></td>' +
+                '<td>' +
+                    '<select class="status-select status-' + status.toLowerCase() + '" ' +
+                        'data-id="' + escapeHtml(a._id) + '">' +
+                        STATUS_OPTIONS.map(function (option) {
+                            return '<option value="' + option + '"' +
+                                (option === status ? ' selected' : '') + '>' +
+                                option + '</option>';
+                        }).join('') +
+                    '</select>' +
+                '</td>' +
             '</tr>';
         }).join('');
     }
@@ -265,6 +282,60 @@ document.addEventListener('DOMContentLoaded', function () {
     function renderAll() {
         renderRecords();
         renderPhotos();
+    }
+
+    // ==================================================
+    // STATUS UPDATE - kapag "Completed", nagbabawas ng inventory ang server
+    // ==================================================
+
+    if (recordsTable) {
+        recordsTable.addEventListener('change', function (event) {
+            var select = event.target;
+
+            if (!select.classList.contains('status-select')) {
+                return;
+            }
+
+            var id = select.dataset.id;
+            var status = select.value;
+
+            select.disabled = true;
+
+            request('/api/appointments/' + id + '/status', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: status })
+            }).then(function (data) {
+                select.disabled = false;
+
+                if (!data) {
+                    return;
+                }
+
+                if (!data.success) {
+                    window.alert(data.message || 'Failed to update status.');
+                    load();
+                    return;
+                }
+
+                appointments.forEach(function (a) {
+                    if (String(a._id) === String(id)) {
+                        a.status = status;
+                    }
+                });
+
+                renderAll();
+
+                if (status === 'Completed') {
+                    document.dispatchEvent(new CustomEvent('appointment:completed', {
+                        detail: { appointmentId: id }
+                    }));
+                }
+            }).catch(function (error) {
+                select.disabled = false;
+                console.error('Error updating status:', error);
+            });
+        });
     }
 
     // ==================================================
