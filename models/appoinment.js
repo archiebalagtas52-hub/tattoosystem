@@ -42,6 +42,70 @@ const appointmentSchema = new mongoose.Schema(
             default: ""
         },
 
+        // Ang pangalan na ito ang ipinapadala ng booking form at ito rin
+        // ang binabasa ng My Appointments table (a.tattooSize).
+        tattooSize: {
+            type: String,
+            enum: ["", "Small", "Medium", "Large", "Custom"],
+            default: ""
+        },
+
+        // Sukat sa pulgada kapag Custom ang tattooSize.
+        customWidth: {
+            type: Number,
+            default: null,
+            min: 0
+        },
+
+        customHeight: {
+            type: Number,
+            default: null,
+            min: 0
+        },
+
+        placement: {
+            type: String,
+            default: ""
+        },
+
+        // Laman kapag "Other" ang napiling placement.
+        placementOther: {
+            type: String,
+            default: ""
+        },
+
+        placementSide: {
+            type: String,
+            default: ""
+        },
+
+        amount: {
+            type: Number,
+            default: 0,
+            min: 0
+        },
+
+        // Cash o GCash.
+        paymentMethod: {
+            type: String,
+            enum: ["", "Cash", "GCash"],
+            default: ""
+        },
+
+        // Kung magkano na ang nabayaran ng client.
+        paymentAmount: {
+            type: Number,
+            default: 0,
+            min: 0
+        },
+
+        // Kung magkano pa ang kulang na babayaran.
+        balance: {
+            type: Number,
+            default: 0,
+            min: 0
+        },
+
         // Path ng reference photo, hal. "/uploads/1699999999-123.jpg"
         reference: {
             type: String,

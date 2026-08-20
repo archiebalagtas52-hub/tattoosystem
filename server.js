@@ -3,6 +3,9 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from "url";
+import mongoose from "mongoose";
+import multer from "multer";
+import fs from "fs";
 import connectDB from "./config/database.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import appointmentRoutes from "./routes/appointmentRoutes.js";
@@ -22,71 +25,413 @@ const PORT = process.env.PORT || 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-
-// ======================================================
-// MIDDLEWARE
-// ======================================================
-
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
-
-// ======================================================
-// PUBLIC
-// ======================================================
-
 app.use(express.static(path.join(__dirname, "public")));
-
-
-// ======================================================
-// EJS
-// ======================================================
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
+const bookingSchema = new mongoose.Schema(
+    {
+        clientName: { type: String, required: true, trim: true },
+        phone: { type: String, required: true, trim: true },
+        artist: { type: String, required: true, trim: true },
+        date: { type: Date, required: true },
+        time: { type: String, required: true },
+        tattooType: { type: String, required: true },
+        description: { type: String, default: "" },
 
+        tattooSize: { type: String, default: "" },
+        customWidth: { type: Number, default: null },
+        customHeight: { type: Number, default: null },
 
+        placement: { type: String, default: "" },
+        placementOther: { type: String, default: "" },
+        placementSide: { type: String, default: "" },
 
-// ======================================================
-// API ROUTES
-// ======================================================
+        amount: { type: Number, default: 0, min: 0 },
+        paymentMethod: { type: String, default: "" },
+        paymentAmount: { type: Number, default: 0, min: 0 },
+        balance: { type: Number, default: 0, min: 0 },
+
+        reference: { type: String, default: "" },
+
+        username: { type: String, default: "" },
+        userId: { type: String, required: true, index: true },
+
+        status: { type: String, default: "Pending" },
+        payment: { type: String, default: "Unpaid" }
+    },
+    { timestamps: true }
+);
+
+const Booking =
+    mongoose.models.Booking ||
+    mongoose.model("Booking", bookingSchema, "appointments");
+
+const bookingUploadDir = path.join(process.cwd(), "public", "uploads");
+
+fs.mkdirSync(bookingUploadDir, { recursive: true });
+
+const bookingUpload = multer({
+    storage: multer.diskStorage({
+        destination: (req, file, cb) => cb(null, bookingUploadDir),
+        filename: (req, file, cb) => {
+            const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+            cb(null, unique + path.extname(file.originalname).toLowerCase());
+        }
+    }),
+    limits: { fileSize: 5 * 1024 * 1024 },
+    fileFilter: (req, file, cb) => cb(null, /^image\//.test(file.mimetype))
+});
+
+const SIZE_PRICES = { Small: 700, Medium: 1500, Large: 10000 };
+const CUSTOM_RATE_PER_SQ_INCH = 150;
+const CUSTOM_MINIMUM = 700;
+const FIXED_SIZE_BY_TYPE = { Minimalist: "Small" };
+const VALID_SIZE = ["Small", "Medium", "Large", "Custom"];
+
+function computeAmount(size, width, height) {
+    if (Object.prototype.hasOwnProperty.call(SIZE_PRICES, size)) {
+        return SIZE_PRICES[size];
+    }
+
+    if (size === "Custom") {
+        const w = Number(width);
+        const h = Number(height);
+
+        if (!w || !h || w <= 0 || h <= 0) {
+            return 0;
+        }
+
+        return Math.max(w * h * CUSTOM_RATE_PER_SQ_INCH, CUSTOM_MINIMUM);
+    }
+
+    return 0;
+}
+
+function requireLoginCookie(req, res, next) {
+    if (!req.cookies || !req.cookies.userId) {
+        return res.status(401).json({
+            success: false,
+            message: "Not logged in."
+        });
+    }
+
+    req.user = {
+        id: req.cookies.userId,
+        username: req.cookies.username || "",
+        role: req.cookies.role || "client"
+    };
+
+    next();
+}
+
+const bookingRouter = express.Router();
+
+bookingRouter.get("/", requireLoginCookie, async (req, res) => {
+    try {
+        const appointments = await Booking
+            .find({ userId: req.user.id })
+            .sort({ date: 1, time: 1 })
+            .lean();
+
+        return res.json({ success: true, appointments });
+
+    } catch (error) {
+        console.error("GET /api/appointments", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to load appointments."
+        });
+    }
+});
+
+bookingRouter.post("/:id/pay", requireLoginCookie, async (req, res) => {
+    try {
+        if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+            return res.status(400).json({
+                success: false,
+                message: "Invalid appointment id."
+            });
+        }
+
+        const appointment = await Booking.findById(req.params.id);
+
+        if (!appointment) {
+            return res.status(404).json({
+                success: false,
+                message: "Appointment not found."
+            });
+        }
+
+        if (String(appointment.userId) !== String(req.user.id) &&
+            req.user.role !== "admin") {
+            return res.status(403).json({
+                success: false,
+                message: "Hindi mo puwedeng bayaran ang appointment na ito."
+            });
+        }
+
+        if (appointment.status === "Cancelled") {
+            return res.status(400).json({
+                success: false,
+                message: "Cancelled appointments cannot be paid."
+            });
+        }
+
+        const method = (req.body.paymentMethod || "").trim();
+
+        if (method !== "Cash" && method !== "GCash") {
+            return res.status(400).json({
+                success: false,
+                message: "Please choose Cash or GCash."
+            });
+        }
+
+        const payNow = Number(req.body.amount);
+
+        if (!payNow || isNaN(payNow) || payNow <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Please enter a valid payment amount."
+            });
+        }
+
+        const total = Number(appointment.amount) > 0
+            ? Number(appointment.amount)
+            : computeAmount(
+                appointment.tattooSize ||
+                    FIXED_SIZE_BY_TYPE[appointment.tattooType] ||
+                    "",
+                appointment.customWidth,
+                appointment.customHeight
+            );
+
+        if (total <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Walang naka-set na amount sa appointment na ito."
+            });
+        }
+
+        const paidBefore = Number(appointment.paymentAmount) > 0
+            ? Number(appointment.paymentAmount)
+            : (appointment.payment === "Paid" ? total : 0);
+
+        const remaining = Math.max(total - paidBefore, 0);
+
+        if (remaining <= 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Bayad na ang appointment na ito."
+            });
+        }
+
+        if (payNow > remaining) {
+            return res.status(400).json({
+                success: false,
+                message: "Payment cannot be more than the remaining balance."
+            });
+        }
+
+        appointment.amount = total;
+        appointment.paymentAmount = paidBefore + payNow;
+        appointment.balance = Math.max(total - appointment.paymentAmount, 0);
+        appointment.paymentMethod = method;
+        appointment.payment = appointment.balance === 0 ? "Paid" : method;
+
+        await appointment.save();
+
+        return res.json({ success: true, appointment });
+
+    } catch (error) {
+        console.error("POST /api/appointments/:id/pay", error);
+        return res.status(500).json({
+            success: false,
+            message: "Failed to record payment."
+        });
+    }
+});
+
+bookingRouter.post(
+    "/",
+    requireLoginCookie,
+    bookingUpload.single("reference"),
+    async (req, res) => {
+        try {
+            const clientName = (req.body.clientName || "").trim();
+            const phone = (req.body.phone || "").trim();
+            const artist = (req.body.artist || "").trim();
+            const time = req.body.time;
+            const tattooType = req.body.tattooType;
+            const description = (req.body.description || "").trim();
+
+            if (!clientName || !phone || !artist || !req.body.date ||
+                !time || !tattooType) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Please complete all required fields."
+                });
+            }
+
+            const parsedDate = new Date(req.body.date);
+
+            if (isNaN(parsedDate.getTime())) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid appointment date."
+                });
+            }
+
+            const tattooSize = FIXED_SIZE_BY_TYPE[tattooType] ||
+                (req.body.tattooSize || req.body.size || "").trim();
+
+            if (!VALID_SIZE.includes(tattooSize)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Please choose a tattoo size."
+                });
+            }
+
+            const customWidth = tattooSize === "Custom"
+                ? Number(req.body.customWidth) || 0
+                : null;
+
+            const customHeight = tattooSize === "Custom"
+                ? Number(req.body.customHeight) || 0
+                : null;
+
+            if (tattooSize === "Custom" &&
+                (customWidth <= 0 || customHeight <= 0)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Please enter the width and height in inches."
+                });
+            }
+
+            const placement = (req.body.placement || "").trim();
+            const placementOther = (req.body.placementOther || "").trim();
+            const placementSide = (req.body.placementSide || "").trim();
+
+            if (!placement) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Please choose a tattoo placement."
+                });
+            }
+
+            if (placement === "Other" && !placementOther) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Please describe the tattoo placement."
+                });
+            }
+
+            const amount = computeAmount(tattooSize, customWidth, customHeight);
+
+            if (amount <= 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Unable to compute the amount for this size."
+                });
+            }
+
+            const paymentMethod = (req.body.paymentMethod || "").trim();
+
+            if (paymentMethod && paymentMethod !== "Cash" &&
+                paymentMethod !== "GCash") {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid payment method."
+                });
+            }
+
+            const paidInput = Math.max(Number(req.body.paymentAmount) || 0, 0);
+
+            if (paidInput > amount) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Payment cannot be more than the total amount."
+                });
+            }
+
+            const paymentAmount = paymentMethod ? paidInput : 0;
+            const balance = Math.max(amount - paymentAmount, 0);
+
+            const payment = paymentAmount <= 0
+                ? "Unpaid"
+                : (balance === 0 ? "Paid" : paymentMethod);
+
+            let reference = "";
+
+            if (req.file) {
+                reference = "/uploads/" + req.file.filename;
+            } else if (typeof req.body.referenceUrl === "string") {
+                const chosen = req.body.referenceUrl.trim();
+
+                if (/^\/uploads\//.test(chosen)) {
+                    reference = chosen;
+                }
+            }
+
+            const appointment = await Booking.create({
+                clientName,
+                phone,
+                artist,
+                date: parsedDate,
+                time,
+                tattooType,
+                description,
+                tattooSize,
+                customWidth,
+                customHeight,
+                placement,
+                placementOther,
+                placementSide,
+                amount,
+                paymentMethod,
+                paymentAmount,
+                balance,
+                payment,
+                reference,
+                username: req.user.username,
+                userId: req.user.id,
+                status: "Pending"
+            });
+
+            return res.status(201).json({ success: true, appointment });
+
+        } catch (error) {
+            console.error("POST /api/appointments", error);
+            return res.status(500).json({
+                success: false,
+                message: "Failed to book appointment."
+            });
+        }
+    }
+);
 
 app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/appointments", appointmentRoutes);
+app.use("/api/appointments", bookingRouter);
 app.use("/api/inventory", inventoryRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/appointments/admin", reportRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/photos", photoRoutes);
 
-// ======================================================
-// ROLE HELPERS
-// ======================================================
-
 const homeFor = (role) => (role === "admin" ? "/dashboard" : "/clientdashboard");
 
-
-// ======================================================
-// CREATE ADMIN
-// ======================================================
-
 const initializeAdmin = async () => {
-
     try {
-
         let admin = await User.findOne({
             username: "admin"
         });
 
-
-        // ==================================================
-        // CREATE ADMIN IF IT DOESN'T EXIST
-        // ==================================================
-
         if (!admin) {
-
             const hashedPassword = await bcrypt.hash(
                 "admin123",
                 10
@@ -109,8 +454,6 @@ const initializeAdmin = async () => {
             console.log("=================================");
 
         } else {
-
-            // Don't reset the password every startup
             admin.role = "admin";
 
             if (admin.isActive === undefined) {
@@ -127,7 +470,6 @@ const initializeAdmin = async () => {
         }
 
     } catch (error) {
-
         console.error(
             "❌ Admin initialization error:",
             error
@@ -135,21 +477,14 @@ const initializeAdmin = async () => {
     }
 };
 
-
-// ======================================================
-// PAGE ROUTES
-// ======================================================
-
 app.get("/", (req, res) => {
     res.render("login");
 });
 
 app.get("/login", (req, res) => {
-
     const userId = req.cookies.userId;
     const role = req.cookies.role;
 
-    // Already logged in
     if (userId) {
         return res.redirect(homeFor(role));
     }
@@ -165,8 +500,6 @@ app.get("/dashboard", requireRole("admin"), (req, res) => {
     res.render("dashboard");
 });
 
-// FIXED: httpOnly ang login cookies, kaya hindi kayang basahin ng document.cookie
-// ang username. Ipinapasa na siya sa view.
 app.get("/clientdashboard", requireRole("client"), (req, res) => {
     res.render("clientdashboard", {
         username: req.cookies.username || "Client"
@@ -185,7 +518,6 @@ app.get("/aboutus", (req, res) => {
     res.render("aboutus");
 });
 
-
 app.get("/photos", (req, res) => {
     res.render("photos", { role: req.cookies.role || "client" });
 });
@@ -194,7 +526,6 @@ app.get("/reports", (req, res) => {
     res.render("report&records");
 });
 
-// alias so /report&records also works
 app.get("/report&records", (req, res) => {
     res.render("report&records");
 });
@@ -203,27 +534,13 @@ app.get('/clientappointment', (req, res) => {
     res.render('clientappointment');
 });
 
-// ======================================================
-// LOGOUT
-// ======================================================
-
 app.get("/logout", (req, res) => {
-
     res.clearCookie("userId");
     res.clearCookie("username");
     res.clearCookie("role");
 
     res.redirect("/login");
 });
-
-
-// ======================================================
-// LOGIN API
-// ======================================================
-
-// REMOVED: app.post('/clientappointment') - nag-console.log lang, walang sinasave
-// sa MongoDB, kaya walang lumalabas sa admin dashboard.
-// POST /api/appointments na ang bahala sa booking.
 
 app.post("/login", async (req, res) => {
     let username = "";
@@ -287,7 +604,6 @@ app.post("/login", async (req, res) => {
         console.log("Role from DB:", user.role);
         console.log("=================================");
 
-        // Redirect based on role
         return res.status(200).json({
             success: true,
             message: "Login successful!",
@@ -304,9 +620,7 @@ app.post("/login", async (req, res) => {
     }
 });
 
-
 app.post("/register", async function(req, res) {
-
     var username = "";
     var password = "";
 
@@ -318,78 +632,43 @@ app.post("/register", async function(req, res) {
         password = req.body.password;
     }
 
-    // ==================================================
-    // REQUIRED FIELDS
-    // ==================================================
-
     if (!username || !password) {
-
         return res.status(400).json({
             success: false,
             message: "Please complete all registration fields."
         });
     }
 
-
-    // ==================================================
-    // USERNAME
-    // ==================================================
-
     if (username.length < 3) {
-
         return res.status(400).json({
             success: false,
             message: "Username must be at least 3 characters."
         });
     }
 
-
-    // ==================================================
-    // PASSWORD LENGTH
-    // ==================================================
-
     if (password.length < 6) {
-
         return res.status(400).json({
             success: false,
             message: "Password must be at least 6 characters."
         });
     }
 
-
     try {
-
-        // ==================================================
-        // CHECK MONGODB
-        // ==================================================
-
         var existingUser = await User.findOne({
             username: username
         });
 
-
         if (existingUser) {
-
             return res.status(409).json({
                 success: false,
                 message: "Username already exists."
             });
         }
 
-
-        // ==================================================
-        // HASH PASSWORD
-        // ==================================================
-
         var hashedPassword = await bcrypt.hash(
             password,
             10
         );
-
-
-        // ==================================================
-        // CREATE CLIENT
-        // ==================================================
 
         var newUser = new User({
             username: username,
@@ -398,13 +677,7 @@ app.post("/register", async function(req, res) {
             isActive: true
         });
 
-
-        // ==================================================
-        // SAVE TO MONGODB
-        // ==================================================
-
         await newUser.save();
-
 
         console.log("=================================");
         console.log("CLIENT REGISTERED");
@@ -412,21 +685,13 @@ app.post("/register", async function(req, res) {
         console.log("Role: client");
         console.log("=================================");
 
-
-        // ==================================================
-        // VERIFY PASSWORD HASH MATCHES
-        // ==================================================
-
-        // Retrieve the saved user to verify
         var savedUser = await User.findOne({
             username: username
         });
 
-        // Compare the provided password with the stored hash
         var passwordMatch = await bcrypt.compare(password, savedUser.password);
 
         if (passwordMatch) {
-            // Password matches - redirect to login
             console.log("Password verification: SUCCESS");
             return res.status(201).json({
                 success: true,
@@ -434,7 +699,6 @@ app.post("/register", async function(req, res) {
                 redirectUrl: "/login"
             });
         } else {
-            // Password doesn't match - this should not happen but just in case
             console.log("Password verification: FAILED");
             return res.status(500).json({
                 success: false,
@@ -442,31 +706,19 @@ app.post("/register", async function(req, res) {
             });
         }
 
-
     } catch (error) {
-
         console.error(
             "REGISTRATION ERROR:",
             error
         );
-
 
         return res.status(500).json({
             success: false,
             message: "Registration failed. Please try again."
         });
     }
-
 });
 
-
-
-// ======================================================
-// API 404 - JSON, hindi HTML
-// ======================================================
-
-// Kung walang tumugmang /api route, mag-JSON para hindi "Unexpected server
-// response" ang makita sa frontend.
 app.use("/api", (req, res) => {
     res.status(404).json({
         success: false,
@@ -474,35 +726,25 @@ app.use("/api", (req, res) => {
     });
 });
 
-
 const startServer = async () => {
-
     try {
-
         console.log("Connecting to MongoDB...");
 
-        // Hintayin talaga ang DB bago gumawa ng admin
         await connectDB();
-
         await initializeAdmin();
 
         app.listen(PORT, () => {
-
             console.log(
                 ` Server running at http://localhost:${PORT}`
             );
-
         });
 
     } catch (error) {
-
         console.error(
             "Server error:",
             error
         );
-
     }
 };
-
 
 startServer();

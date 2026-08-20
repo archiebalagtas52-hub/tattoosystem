@@ -18,11 +18,39 @@ document.addEventListener('DOMContentLoaded', function () {
 
     var ARTISTS = ['Totats'];
 
+    // Presyo ayon sa laki ng tattoo
+    var SIZE_PRICES = {
+        Small: 700,
+        Medium: 1500,
+        Large: 10000
+    };
+
+    // Custom: bawat square inch
+    var CUSTOM_RATE_PER_SQ_INCH = 150;
+    var CUSTOM_MINIMUM = 700;
+
     var tableBody = document.getElementById('appointmentsBody');
     var form = document.getElementById('appointmentForm');
     var artistSelect = document.getElementById('artist');
     var dateInput = document.getElementById('date');
     var tattooTypeSelect = document.getElementById('tattooType');
+
+    var sizeSelect = document.getElementById('tattooSize');
+    var customSizeRow = document.getElementById('customSizeRow');
+    var widthInput = document.getElementById('customWidth');
+    var heightInput = document.getElementById('customHeight');
+    var amountInput = document.getElementById('amount');
+    var amountDisplay = document.getElementById('amountDisplay');
+    var amountNote = document.getElementById('amountNote');
+    var placementSelect = document.getElementById('placement');
+    var placementOtherGroup = document.getElementById('placementOtherGroup');
+    var placementOtherInput = document.getElementById('placementOther');
+
+    var paymentMethodSelect = document.getElementById('paymentMethod');
+    var paymentAmountInput = document.getElementById('paymentAmount');
+    var balanceInput = document.getElementById('balance');
+    var balanceDisplay = document.getElementById('balanceDisplay');
+    var paymentNote = document.getElementById('paymentNote');
 
     // Hinahanap ang file input kahit ano ang id
     var fileInput =
@@ -67,6 +95,52 @@ document.addEventListener('DOMContentLoaded', function () {
             });
     }
 
+    function formatPeso(value) {
+        return '\u20B1' + Number(value || 0).toLocaleString('en-PH', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    function computeAmount(size, width, height) {
+        if (Object.prototype.hasOwnProperty.call(SIZE_PRICES, size)) {
+            return {
+                amount: SIZE_PRICES[size],
+                note: size + ' tattoo - fixed rate.'
+            };
+        }
+
+        if (size === 'Custom') {
+            var w = Number(width);
+            var h = Number(height);
+
+            if (!w || !h || w <= 0 || h <= 0) {
+                return {
+                    amount: 0,
+                    note: 'Enter width and height in inches to compute the amount.'
+                };
+            }
+
+            var squareInches = w * h;
+            var raw = squareInches * CUSTOM_RATE_PER_SQ_INCH;
+            var amount = Math.max(raw, CUSTOM_MINIMUM);
+
+            var note = w + ' in x ' + h + ' in = ' + squareInches.toFixed(2) +
+                ' sq in x ' + formatPeso(CUSTOM_RATE_PER_SQ_INCH) + '/sq in';
+
+            if (amount > raw) {
+                note += ' (minimum ' + formatPeso(CUSTOM_MINIMUM) + ' applied)';
+            }
+
+            return { amount: amount, note: note };
+        }
+
+        return {
+            amount: 0,
+            note: 'Select a tattoo size to compute the amount.'
+        };
+    }
+
     function request(url, options) {
         var opts = options || {};
         opts.credentials = 'same-origin';
@@ -106,6 +180,181 @@ document.addEventListener('DOMContentLoaded', function () {
     if (dateInput) {
         dateInput.min = toInputDate(new Date());
     }
+
+    // ==================================================
+    // TATTOO SIZE -> AUTOMATIC NA HALAGA
+    // ==================================================
+
+    function refreshAmount() {
+        if (!sizeSelect || !amountInput) {
+            return 0;
+        }
+
+        var size = sizeSelect.value;
+        var isCustom = size === 'Custom';
+
+        if (customSizeRow) {
+            customSizeRow.hidden = !isCustom;
+        }
+
+        if (widthInput && heightInput) {
+            widthInput.required = isCustom;
+            heightInput.required = isCustom;
+
+            if (!isCustom) {
+                widthInput.value = '';
+                heightInput.value = '';
+            }
+        }
+
+        var result = computeAmount(
+            size,
+            widthInput ? widthInput.value : '',
+            heightInput ? heightInput.value : ''
+        );
+
+        amountInput.value = result.amount.toFixed(2);
+
+        if (amountDisplay) {
+            amountDisplay.textContent = formatPeso(result.amount);
+        }
+
+        if (amountNote) {
+            amountNote.textContent = tattooTypeSelect &&
+                FIXED_SIZE_BY_TYPE[tattooTypeSelect.value]
+                ? tattooTypeSelect.value + ' is always ' +
+                    FIXED_SIZE_BY_TYPE[tattooTypeSelect.value] + ' - ' + result.note
+                : result.note;
+        }
+
+        refreshBalance(result.amount);
+
+        return result.amount;
+    }
+
+    // ==================================================
+    // PAYMENT - Cash o GCash, at ang natitirang balanse
+    // ==================================================
+
+    function refreshBalance(total) {
+        if (!balanceInput) {
+            return 0;
+        }
+
+        var due = Number(total === undefined ? (amountInput ? amountInput.value : 0) : total) || 0;
+        var paid = Number(paymentAmountInput ? paymentAmountInput.value : 0) || 0;
+
+        if (paymentAmountInput) {
+            paymentAmountInput.max = due;
+        }
+
+        var balance = Math.max(due - paid, 0);
+        balanceInput.value = balance.toFixed(2);
+
+        if (balanceDisplay) {
+            balanceDisplay.textContent = formatPeso(balance);
+        }
+
+        var method = paymentMethodSelect && paymentMethodSelect.value
+            ? ' via ' + paymentMethodSelect.value
+            : '';
+
+        if (paymentNote) {
+            if (paid <= 0) {
+                paymentNote.textContent = 'Enter your payment to see the remaining balance.';
+            } else if (paid > due) {
+                paymentNote.textContent = 'Payment is more than the total amount of ' +
+                    formatPeso(due) + '.';
+            } else if (balance === 0) {
+                paymentNote.textContent = 'Fully paid' + method + '.';
+            } else {
+                paymentNote.textContent = formatPeso(paid) + ' paid' + method +
+                    ' out of ' + formatPeso(due) + '.';
+            }
+        }
+
+        return balance;
+    }
+
+    if (paymentAmountInput) {
+        paymentAmountInput.addEventListener('input', function () {
+            refreshBalance();
+        });
+    }
+
+    if (paymentMethodSelect) {
+        paymentMethodSelect.addEventListener('change', function () {
+            refreshBalance();
+        });
+    }
+
+    // ==================================================
+    // MINIMALIST - laging Small (fixed na 700)
+    // ==================================================
+
+    var FIXED_SIZE_BY_TYPE = {
+        Minimalist: 'Small'
+    };
+
+    function applyTypeFixedSize() {
+        if (!sizeSelect || !tattooTypeSelect) {
+            return;
+        }
+
+        var fixed = FIXED_SIZE_BY_TYPE[tattooTypeSelect.value];
+
+        if (fixed) {
+            sizeSelect.value = fixed;
+            sizeSelect.disabled = true;
+            sizeSelect.title = tattooTypeSelect.value + ' tattoos are always ' + fixed + '.';
+        } else {
+            sizeSelect.disabled = false;
+            sizeSelect.title = '';
+        }
+
+        refreshAmount();
+    }
+
+    if (tattooTypeSelect) {
+        tattooTypeSelect.addEventListener('change', applyTypeFixedSize);
+    }
+
+    if (sizeSelect) {
+        sizeSelect.addEventListener('change', refreshAmount);
+    }
+
+    if (widthInput) {
+        widthInput.addEventListener('input', refreshAmount);
+    }
+
+    if (heightInput) {
+        heightInput.addEventListener('input', refreshAmount);
+    }
+
+    // ==================================================
+    // PLACEMENT - saan ilalagay ang tattoo
+    // ==================================================
+
+    if (placementSelect) {
+        placementSelect.addEventListener('change', function () {
+            var isOther = placementSelect.value === 'Other';
+
+            if (placementOtherGroup) {
+                placementOtherGroup.hidden = !isOther;
+            }
+
+            if (placementOtherInput) {
+                placementOtherInput.required = isOther;
+
+                if (!isOther) {
+                    placementOtherInput.value = '';
+                }
+            }
+        });
+    }
+
+    applyTypeFixedSize();
+    refreshAmount();
 
     // ==================================================
     // REFERENCE PHOTO - napiling design galing sa /photos
@@ -202,6 +451,7 @@ document.addEventListener('DOMContentLoaded', function () {
             for (var i = 0; i < tattooTypeSelect.options.length; i++) {
                 if (tattooTypeSelect.options[i].value.toLowerCase() === title.toLowerCase()) {
                     tattooTypeSelect.selectedIndex = i;
+                    applyTypeFixedSize();
                     break;
                 }
             }
@@ -273,23 +523,194 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (!appointments.length) {
             tableBody.innerHTML =
-                '<tr><td colspan="5" style="text-align:center;">No appointments yet.</td></tr>';
+                '<tr><td colspan="11" style="text-align:center;">No appointments yet.</td></tr>';
             return;
         }
 
         tableBody.innerHTML = appointments.map(function (a) {
             var status = a.status || 'Pending';
 
+            // Ang lumang records ay "size" ang field, hindi "tattooSize",
+            // at ang Minimalist ay laging Small.
+            var sizeValue = a.tattooSize || a.size ||
+                FIXED_SIZE_BY_TYPE[a.tattooType] || '';
+
+            var size = sizeValue || 'N/A';
+
+            if (sizeValue === 'Custom' && a.customWidth && a.customHeight) {
+                size = 'Custom (' + a.customWidth + ' x ' + a.customHeight + ' in)';
+            }
+
+            var placement = a.placement === 'Other'
+                ? (a.placementOther || 'Other')
+                : (a.placement || 'N/A');
+
+            if (a.placementSide) {
+                placement = a.placementSide + ' ' + placement;
+            }
+
+            // Kung hindi pa na-set ang amount (lumang booking), kuwentahin
+            // gamit ang parehong presyo na ginagamit sa booking form.
+            var amount = Number(a.amount || 0);
+
+            if (!amount) {
+                amount = computeAmount(
+                    sizeValue,
+                    a.customWidth,
+                    a.customHeight
+                ).amount;
+            }
+
+            var paid = Number(a.paymentAmount || 0);
+
+            if (!paid && a.payment === 'Paid') {
+                paid = amount;
+            }
+
+            var balance = a.balance === undefined || a.balance === null ||
+                (Number(a.balance) === 0 && amount > paid)
+                ? Math.max(amount - paid, 0)
+                : Number(a.balance);
+
+            var method = a.paymentMethod ||
+                (a.payment && a.payment !== 'Unpaid' && a.payment !== 'Paid'
+                    ? a.payment
+                    : '');
+
+            var payment = paid > 0
+                ? formatPeso(paid) + (method ? ' (' + method + ')' : ' (Paid)')
+                : (method || 'Unpaid');
+
+            // Kung may natitirang balanse, may input para makabayad ulit.
+            var canPay = balance > 0 && status !== 'Cancelled';
+
+            var payCell = canPay
+                ? '<div class="pay-box">' +
+                    '<select class="pay-method" data-id="' + escapeHtml(a._id) + '">' +
+                        '<option value="Cash">Cash</option>' +
+                        '<option value="GCash">GCash</option>' +
+                    '</select>' +
+                    '<input type="number" class="pay-amount" data-id="' + escapeHtml(a._id) + '" ' +
+                        'min="0.01" step="0.01" max="' + balance + '" ' +
+                        'placeholder="' + balance.toFixed(2) + '">' +
+                    '<button type="button" class="pay-btn" data-id="' + escapeHtml(a._id) + '">Pay</button>' +
+                  '</div>'
+                : '<span class="pay-done">' +
+                    (Number(a.amount || amount) > 0 ? 'Fully paid' : '-') +
+                  '</span>';
+
             return '<tr>' +
                 '<td>' + escapeHtml(a.artist) + '</td>' +
                 '<td>' + formatDate(a.date) + '</td>' +
                 '<td>' + escapeHtml(a.time) + '</td>' +
                 '<td>' + escapeHtml(a.tattooType) + '</td>' +
+                '<td>' + escapeHtml(size) + '</td>' +
+                '<td>' + escapeHtml(placement) + '</td>' +
+                '<td>' + escapeHtml(formatPeso(amount)) + '</td>' +
+                '<td>' + escapeHtml(payment) + '</td>' +
+                '<td>' + escapeHtml(formatPeso(balance)) + '</td>' +
                 '<td><span class="status status-' + status.toLowerCase() + '">' +
                     escapeHtml(status) +
                 '</span></td>' +
+                '<td>' + payCell + '</td>' +
             '</tr>';
         }).join('');
+    }
+
+    // ==================================================
+    // PAY BALANCE - bayad sa natitirang balanse
+    // ==================================================
+
+    function injectPayStyles() {
+        if (document.getElementById('payBalanceStyles')) {
+            return;
+        }
+
+        var style = document.createElement('style');
+        style.id = 'payBalanceStyles';
+
+        style.textContent =
+            '.pay-box{display:flex;gap:4px;align-items:center}' +
+            '.pay-box select,.pay-box input{padding:4px;font-size:12px;border:1px solid #ccc;' +
+            'border-radius:4px}' +
+            '.pay-box input{width:80px}' +
+            '.pay-btn{padding:4px 10px;font-size:12px;border:none;border-radius:4px;' +
+            'background:#c0392b;color:#fff;cursor:pointer}' +
+            '.pay-btn:disabled{opacity:.6;cursor:not-allowed}' +
+            '.pay-done{font-size:12px;color:#777}';
+
+        document.head.appendChild(style);
+    }
+
+    injectPayStyles();
+
+    if (tableBody) {
+        tableBody.addEventListener('click', function (event) {
+            var button = event.target.closest
+                ? event.target.closest('.pay-btn')
+                : null;
+
+            if (!button) {
+                return;
+            }
+
+            var id = button.getAttribute('data-id');
+
+            var amountField = tableBody.querySelector(
+                '.pay-amount[data-id="' + id + '"]'
+            );
+
+            var methodField = tableBody.querySelector(
+                '.pay-method[data-id="' + id + '"]'
+            );
+
+            var value = Number(amountField ? amountField.value : 0) || 0;
+            var maximum = Number(amountField ? amountField.max : 0) || 0;
+
+            if (value <= 0) {
+                alert('Please enter the amount you want to pay.');
+                return;
+            }
+
+            if (maximum && value > maximum) {
+                alert('Payment cannot be more than the remaining balance of ' +
+                    formatPeso(maximum) + '.');
+                return;
+            }
+
+            button.disabled = true;
+
+            request('/api/appointments/' + id + '/pay', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    amount: value,
+                    paymentMethod: methodField ? methodField.value : 'Cash'
+                })
+            })
+                .then(function (data) {
+                    button.disabled = false;
+
+                    if (!data) {
+                        return;
+                    }
+
+                    if (!data.success) {
+                        alert(data.message || 'Payment failed. Please try again.');
+                        return;
+                    }
+
+                    alert('Payment recorded. Remaining balance: ' +
+                        formatPeso(data.appointment.balance) + '.');
+
+                    load();
+                })
+                .catch(function (error) {
+                    console.error('Error paying balance:', error);
+                    button.disabled = false;
+                    alert('An error occurred. Please try again.');
+                });
+        });
     }
 
     function load() {
@@ -320,16 +741,40 @@ document.addEventListener('DOMContentLoaded', function () {
         form.addEventListener('submit', function (event) {
             event.preventDefault();
 
+            var due = refreshAmount();
+
+            if (due <= 0) {
+                alert('Please choose a tattoo size (and inches for a custom size) first.');
+                return;
+            }
+
+            if (paymentMethodSelect && !paymentMethodSelect.value) {
+                alert('Please choose a payment method (Cash or GCash).');
+                return;
+            }
+
+            if (paymentAmountInput && Number(paymentAmountInput.value || 0) > due) {
+                alert('Payment cannot be more than the total amount of ' + formatPeso(due) + '.');
+                return;
+            }
+
             var submitButton = form.querySelector('button[type="submit"]');
 
             if (submitButton) {
                 submitButton.disabled = true;
             }
 
+            var payload = new FormData(form);
+
+            // Hindi kasama sa FormData ang naka-disable na select
+            if (sizeSelect && sizeSelect.disabled) {
+                payload.set('tattooSize', sizeSelect.value);
+            }
+
             fetch('/api/appointments', {
                 method: 'POST',
                 credentials: 'same-origin',
-                body: new FormData(form)
+                body: payload
             })
                 .then(function (response) {
                     if (response.status === 401 || response.status === 403) {
@@ -355,6 +800,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
                     form.reset();
                     clearChosenDesign();
+                    applyTypeFixedSize();
+                    refreshBalance();
 
                     if (typeof window.closeAppointmentModal === 'function') {
                         window.closeAppointmentModal();

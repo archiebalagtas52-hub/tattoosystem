@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', function () {
     var searchInput = document.getElementById('searchInput');
     var statusFilter = document.getElementById('statusFilter');
     var dateFilter = document.getElementById('dateFilter');
+    var sizeFilter = document.getElementById('sizeFilter');
 
     var rescheduleModal = document.getElementById('rescheduleModal');
     var rescheduleForm = document.getElementById('rescheduleForm');
@@ -28,6 +29,12 @@ document.addEventListener('DOMContentLoaded', function () {
     var imageModal = document.getElementById('imageModal');
     var imagePreview = document.getElementById('imagePreview');
     var paymentModal = document.getElementById('paymentModal');
+
+    var tattooDetailsModal = document.getElementById('tattooDetailsModal');
+    var detailSize = document.getElementById('detailSize');
+    var detailDimensions = document.getElementById('detailDimensions');
+    var detailPlacement = document.getElementById('detailPlacement');
+    var detailAmount = document.getElementById('detailAmount');
 
     if (!tableBody) {
         return;
@@ -66,6 +73,61 @@ document.addEventListener('DOMContentLoaded', function () {
         return isNaN(parsed.getTime())
             ? 'N/A'
             : parsed.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    }
+
+    // ==================================================
+    // SIZE / PLACEMENT / AMOUNT
+    // ==================================================
+
+    var PRESET_INCHES = {
+        Small: 'up to 3 in',
+        Medium: 'up to 6 in',
+        Large: 'up to 12 in'
+    };
+
+    function formatPeso(value) {
+        return '\u20B1' + Number(value || 0).toLocaleString('en-PH', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    }
+
+    // "Custom (5 x 8 in)" o "Medium"
+    function formatSize(a) {
+        if (!a.tattooSize) {
+            return 'N/A';
+        }
+
+        if (a.tattooSize === 'Custom' && a.customWidth && a.customHeight) {
+            return 'Custom (' + a.customWidth + ' x ' + a.customHeight + ' in)';
+        }
+
+        return a.tattooSize;
+    }
+
+    // "Left Forearm"
+    function formatPlacement(a) {
+        var place = a.placement === 'Other'
+            ? (a.placementOther || 'Other')
+            : (a.placement || 'N/A');
+
+        if (a.placementSide && place !== 'N/A') {
+            place = a.placementSide + ' ' + place;
+        }
+
+        return place;
+    }
+
+    // Gaano kalaki - eksaktong inches kapag custom
+    function formatDimensions(a) {
+        if (a.customWidth && a.customHeight) {
+            var squareInches = Number(a.customWidth) * Number(a.customHeight);
+
+            return a.customWidth + ' in x ' + a.customHeight + ' in (' +
+                squareInches.toFixed(2) + ' sq in)';
+        }
+
+        return PRESET_INCHES[a.tattooSize] || 'N/A';
     }
 
     // ==================================================
@@ -182,6 +244,7 @@ document.addEventListener('DOMContentLoaded', function () {
         var term = (searchInput && searchInput.value || '').trim().toLowerCase();
         var status = statusFilter ? statusFilter.value : 'all';
         var day = dateFilter ? dateFilter.value : '';
+        var size = sizeFilter ? sizeFilter.value : 'all';
 
         return allAppointments.filter(function (a) {
             if (status !== 'all' && (a.status || 'Pending') !== status) {
@@ -192,8 +255,13 @@ document.addEventListener('DOMContentLoaded', function () {
                 return false;
             }
 
+            if (size !== 'all' && a.tattooSize !== size) {
+                return false;
+            }
+
             if (term) {
-                var haystack = [a.clientName, a.username, a.phone, a.artist, a.tattooType]
+                var haystack = [a.clientName, a.username, a.phone, a.artist, a.tattooType,
+                    a.tattooSize, formatPlacement(a)]
                     .join(' ')
                     .toLowerCase();
 
@@ -261,6 +329,14 @@ document.addEventListener('DOMContentLoaded', function () {
                 '<td>' + formatDate(a.date) + '</td>' +
                 '<td>' + escapeHtml(a.time) + '</td>' +
                 '<td>' + escapeHtml(a.tattooType) + '</td>' +
+                '<td>' +
+                    '<button type="button" class="size-btn" data-detail-id="' + id + '" ' +
+                        'title="View tattoo details">' +
+                        escapeHtml(formatSize(a)) +
+                    '</button>' +
+                '</td>' +
+                '<td>' + escapeHtml(formatPlacement(a)) + '</td>' +
+                '<td>' + escapeHtml(formatPeso(a.amount)) + '</td>' +
                 '<td>' + imageCell + '</td>' +
                 '<td>' +
                     '<button type="button" class="payment payment-' + payment.toLowerCase().replace(/\s+/g, '-') + '" ' +
@@ -370,6 +446,19 @@ document.addEventListener('DOMContentLoaded', function () {
         rescheduleModal.style.display = 'flex';
     }
 
+    function openTattooDetails(appointment) {
+        if (!tattooDetailsModal) {
+            return;
+        }
+
+        if (detailSize) { detailSize.textContent = formatSize(appointment); }
+        if (detailDimensions) { detailDimensions.textContent = formatDimensions(appointment); }
+        if (detailPlacement) { detailPlacement.textContent = formatPlacement(appointment); }
+        if (detailAmount) { detailAmount.textContent = formatPeso(appointment.amount); }
+
+        tattooDetailsModal.style.display = 'flex';
+    }
+
     function openImage(src) {
         if (imagePreview) {
             imagePreview.src = src;
@@ -389,6 +478,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
         if (imageButton) {
             openImage(imageButton.getAttribute('data-img'));
+            return;
+        }
+
+        // ---------- TATTOO DETAILS ----------
+        var detailButton = event.target.closest('[data-detail-id]');
+
+        if (detailButton) {
+            var detailId = detailButton.getAttribute('data-detail-id');
+            var detailAppointment = allAppointments.find(function (a) {
+                return a._id === detailId;
+            });
+
+            if (detailAppointment) {
+                openTattooDetails(detailAppointment);
+            }
             return;
         }
 
@@ -515,6 +619,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     };
 
+    window.closeTattooDetails = function () {
+        if (tattooDetailsModal) {
+            tattooDetailsModal.style.display = 'none';
+        }
+    };
+
     window.closePayment = function () {
         paymentId = null;
         if (paymentModal) {
@@ -535,6 +645,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (event.target === paymentModal) {
             window.closePayment();
         }
+        if (event.target === tattooDetailsModal) {
+            window.closeTattooDetails();
+        }
     });
 
     document.addEventListener('keydown', function (event) {
@@ -543,6 +656,7 @@ document.addEventListener('DOMContentLoaded', function () {
             window.closeMessage();
             window.closeImage();
             window.closePayment();
+            window.closeTattooDetails();
         }
     });
 
@@ -553,6 +667,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (searchInput) { searchInput.addEventListener('input', render); }
     if (statusFilter) { statusFilter.addEventListener('change', render); }
     if (dateFilter) { dateFilter.addEventListener('change', render); }
+    if (sizeFilter) { sizeFilter.addEventListener('change', render); }
 
     // ==================================================
     // INIT
