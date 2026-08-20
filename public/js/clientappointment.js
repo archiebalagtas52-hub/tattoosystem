@@ -202,9 +202,17 @@ document.addEventListener('DOMContentLoaded', function () {
         opts.credentials = 'same-origin';
 
         return fetch(url, opts).then(function (response) {
-            if (response.status === 401 || response.status === 403) {
+            if (response.status === 401) {
                 window.location.href = '/login';
                 return null;
+            }
+
+            // Logged in, pero hindi admin ang role - huwag i-bounce sa login
+            if (response.status === 403) {
+                return {
+                    success: false,
+                    message: 'Admin account is required to manage client appointments.'
+                };
             }
 
             return response.text().then(function (body) {
@@ -274,12 +282,89 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    function summarize(rows) {
+        var revenue = rows.reduce(function (sum, a) {
+            return sum + (Number(a.amount) || 0);
+        }, 0);
+
+        var noShows = rows.filter(function (a) {
+            return a.status === 'Cancelled';
+        }).length;
+
+        return {
+            count: rows.length,
+            revenue: revenue,
+            average: rows.length ? Math.round(revenue / rows.length) : 0,
+            noShowRate: rows.length ? Math.round((noShows / rows.length) * 100) : 0
+        };
+    }
+
+    function percentChange(current, previous) {
+        if (!previous) {
+            return current ? 100 : 0;
+        }
+
+        return Math.round(((current - previous) / previous) * 100);
+    }
+
+    function setStat(id, text) {
+        var element = document.getElementById(id);
+
+        if (element) {
+            element.textContent = text;
+        }
+    }
+
+    function setDelta(id, value) {
+        var element = document.getElementById(id);
+
+        if (!element) {
+            return;
+        }
+
+        element.className = value < 0 ? 'delta down' : 'delta up';
+        element.textContent = (value > 0 ? '+' : '') + value + '% last month';
+    }
+
+    function peso(value) {
+        return '₱' + Number(value || 0).toLocaleString();
+    }
+
+    function renderStats(rows) {
+        var now = new Date();
+        var monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        var previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+        var overall = summarize(rows);
+
+        var thisMonth = summarize(rows.filter(function (a) {
+            return new Date(a.date) >= monthStart;
+        }));
+
+        var lastMonth = summarize(rows.filter(function (a) {
+            var date = new Date(a.date);
+            return date >= previousMonthStart && date < monthStart;
+        }));
+
+        setStat('statBookings', overall.count.toLocaleString());
+        setStat('statRevenue', peso(overall.revenue));
+        setStat('statAverage', peso(overall.average));
+        setStat('statNoShow', overall.noShowRate + '%');
+
+        setDelta('statBookingsDelta', percentChange(thisMonth.count, lastMonth.count));
+        setDelta('statRevenueDelta', percentChange(thisMonth.revenue, lastMonth.revenue));
+        setDelta('statAverageDelta', percentChange(thisMonth.average, lastMonth.average));
+        setDelta('statNoShowDelta', percentChange(thisMonth.noShowRate, lastMonth.noShowRate));
+    }
+
     function render() {
         var rows = visibleAppointments();
 
         if (totalBox) {
             totalBox.textContent = rows.length;
         }
+
+        renderStats(rows);
 
         if (!rows.length) {
             tableBody.innerHTML = '';

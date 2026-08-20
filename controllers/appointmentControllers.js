@@ -1,7 +1,7 @@
 // controllers/appointmentController.js
 
 import mongoose from "mongoose";
-import Appointment from "../models/appointment.js";
+import Appointment from "../models/appoinment.js";
 
 const VALID_STATUS = [
     "Pending",

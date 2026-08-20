@@ -6,7 +6,7 @@ import { fileURLToPath } from "url";
 import mongoose from "mongoose";
 import multer from "multer";
 import fs from "fs";
-import connectDB from "./config/database.js";
+import connectDB from "./config/Database.js";
 import dashboardRoutes from "./routes/dashboardRoutes.js";
 import appointmentRoutes from "./routes/appointmentRoutes.js";
 import inventoryRoutes from "./routes/inventoryRoutes.js";
@@ -14,6 +14,7 @@ import reportRoutes from "./routes/reportRoutes.js";
 import photoRoutes from "./routes/photoRoutes.js";
 
 import User from "./models/user.js";
+import Dashboard from "./models/dashboard.js";
 import bcrypt from "bcrypt";
 import requireRole from "./middleware/requireRole.js";
 
@@ -625,8 +626,135 @@ app.get("/register", (req, res) => {
     res.render("register");
 });
 
-app.get("/dashboard", requireRole("admin"), (req, res) => {
-    res.render("dashboard");
+const MONTH_LABELS = [
+    "Jan", "Feb", "Mar", "Apr", "May", "Jun",
+    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+];
+
+function percentChange(current, previous) {
+    if (!previous) {
+        return current ? 100 : 0;
+    }
+
+    return Math.round(((current - previous) / previous) * 100);
+}
+
+function summarize(bookings) {
+    const revenue = bookings.reduce((sum, b) => sum + (b.amount || 0), 0);
+    const noShows = bookings.filter((b) => b.status === "Cancelled").length;
+
+    return {
+        count: bookings.length,
+        revenue,
+        average: bookings.length ? Math.round(revenue / bookings.length) : 0,
+        noShowRate: bookings.length ? Math.round((noShows / bookings.length) * 100) : 0
+    };
+}
+
+function buildTrend(bookings, months) {
+    const now = new Date();
+
+    return Array.from({ length: months }, (unused, index) => {
+        const cursor = new Date(now.getFullYear(), now.getMonth() - (months - 1 - index), 1);
+
+        const count = bookings.filter((b) => {
+            const date = new Date(b.date);
+            return date.getFullYear() === cursor.getFullYear()
+                && date.getMonth() === cursor.getMonth();
+        }).length;
+
+        return { label: MONTH_LABELS[cursor.getMonth()], count };
+    });
+}
+
+const EMPTY_DASHBOARD = {
+    dashboard: null,
+    stats: {},
+    recentBookings: [],
+    upcomingAppointments: [],
+    bookingTrend: []
+};
+
+async function buildDashboardData() {
+    const dashboard = await Dashboard.findOne();
+    const bookings = await Booking.find().lean();
+
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+    const thisMonth = summarize(
+        bookings.filter((b) => new Date(b.date) >= monthStart)
+    );
+
+    const lastMonth = summarize(
+        bookings.filter((b) => {
+            const date = new Date(b.date);
+            return date >= previousMonthStart && date < monthStart;
+        })
+    );
+
+    const overall = summarize(bookings);
+
+    const stats = {
+        totalBookings: overall.count,
+        revenue: overall.revenue,
+        avgBookingValue: overall.average,
+        noShowRate: overall.noShowRate,
+        bookingsDelta: percentChange(thisMonth.count, lastMonth.count),
+        revenueDelta: percentChange(thisMonth.revenue, lastMonth.revenue),
+        avgDelta: percentChange(thisMonth.average, lastMonth.average),
+        noShowDelta: percentChange(thisMonth.noShowRate, lastMonth.noShowRate),
+        rangeLabel: now.toLocaleDateString("en-PH", {
+            day: "numeric",
+            month: "long",
+            year: "numeric"
+        })
+    };
+
+    const recentBookings = [...bookings]
+        .sort((a, b) => new Date(b.createdAt || b.date) - new Date(a.createdAt || a.date))
+        .slice(0, 8);
+
+    const upcomingAppointments = bookings
+        .filter((b) => new Date(b.date) >= todayStart && b.status !== "Cancelled")
+        .sort((a, b) => new Date(a.date) - new Date(b.date))
+        .slice(0, 6);
+
+    return {
+        dashboard,
+        stats,
+        recentBookings,
+        upcomingAppointments,
+        bookingTrend: buildTrend(bookings, 8)
+    };
+}
+
+app.get("/dashboard", requireRole("admin"), async (req, res) => {
+    try {
+        res.render("dashboard", await buildDashboardData());
+    } catch (error) {
+        console.error("Dashboard render error:", error);
+        res.render("dashboard", EMPTY_DASHBOARD);
+    }
+});
+
+app.get("/api/dashboard/summary", requireRole("admin"), async (req, res) => {
+    try {
+        const data = await buildDashboardData();
+
+        res.json({
+            success: true,
+            stats: data.stats,
+            recentBookings: data.recentBookings,
+            upcomingAppointments: data.upcomingAppointments,
+            bookingTrend: data.bookingTrend
+        });
+    } catch (error) {
+        console.error("Dashboard summary error:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
 });
 
 app.get("/clientdashboard", requireRole("client"), (req, res) => {
@@ -659,7 +787,7 @@ app.get("/report&records", (req, res) => {
     res.render("report&records");
 });
 
-app.get('/clientappointment', (req, res) => {
+app.get('/clientappointment', requireRole("admin"), (req, res) => {
     res.render('clientappointment');
 });
 
@@ -845,6 +973,16 @@ app.post("/register", async function(req, res) {
             success: false,
             message: "Registration failed. Please try again."
         });
+    }
+});
+
+// GET all appointments for admin
+app.get('/api/appointments/admin/all', requireRole('admin'), async (req, res) => {
+    try {
+        const appointments = await Booking.find({}).sort({ date: -1 }).lean();
+        res.json({ success: true, appointments: appointments });
+    } catch (error) {
+        res.status(500).json({ success: false, message: error.message });
     }
 });
 

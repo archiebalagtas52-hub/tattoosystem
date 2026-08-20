@@ -1,155 +1,190 @@
 // public/js/dashboard.js
-// Gallery category dropdowns: each <select class="gallery-select"> swaps the
-// <img class="gallery-image"> inside the same <figure>, so the same markup can
-// be repeated for as many gallery items as needed.
 
-document.addEventListener('DOMContentLoaded', function () {
+(function () {
 
-    // =============================================
-    // FIX FOR INLINE ONCHANGE ATTRIBUTES
-    // These functions are called from the HTML's onchange
-    // =============================================
+    function imageUrl(value) {
+        return /\.(jpg|jpeg|png|gif|webp)$/i.test(value)
+            ? '/images/' + value
+            : '/images/' + value + '.jpg';
+    }
 
-    // Function for categorySelect dropdowns (Back Piece and Forearm)
-    window.changeImage = function() {
-        // Get all categorySelect elements
-        var selects = document.querySelectorAll('#categorySelect');
-        var images = document.querySelectorAll('#tattooImage');
-        
-        // Loop through all selects and update corresponding images
-        selects.forEach(function(select, index) {
-            if (images[index]) {
-                var value = select.value;
-                if (!value) return;
-                
-                // Check if value has extension
-                if (/\.(jpg|jpeg|png|gif|webp)$/i.test(value)) {
-                    images[index].src = '/images/' + value;
-                } else {
-                    images[index].src = '/images/' + value + '.jpg';
-                }
-            }
-        });
-    };
+    function swap(selectId, imageId) {
+        var select = document.getElementById(selectId);
+        var image = document.getElementById(imageId);
 
-    // Function for minimalistSelect dropdowns
-    window.changeMinimalistImage = function() {
-        // Get all minimalistSelect elements
-        var selects = document.querySelectorAll('#minimalistSelect');
-        var images = document.querySelectorAll('#minimalistImage');
-        
-        // Loop through all selects and update corresponding images
-        selects.forEach(function(select, index) {
-            if (images[index]) {
-                var value = select.value;
-                if (!value) return;
-                
-                // Check if value has extension
-                if (/\.(jpg|jpeg|png|gif|webp)$/i.test(value)) {
-                    images[index].src = '/images/' + value;
-                } else {
-                    images[index].src = '/images/' + value + '.jpg';
-                }
-            }
-        });
-    };
-
-    // =============================================
-    // ORIGINAL FUNCTIONALITY FOR .gallery-select
-    // =============================================
-
-    var selects = document.querySelectorAll('.gallery-select');
-
-    Array.prototype.forEach.call(selects, function (select) {
-        var figure = select.closest('.gallery-item');
-        var image = figure ? figure.querySelector('.gallery-image') : null;
-
-        if (!image) {
+        if (!select || !image || !select.value) {
             return;
         }
 
-        function updateImage() {
-            var value = select.value;
-            if (!value) {
+        image.src = imageUrl(select.value);
+    }
+
+    var pairs = [
+        { select: 'categorySelect', image: 'tattooImage', handler: 'changeImage' },
+        { select: 'minimalistSelect', image: 'minimalistImage', handler: 'changeMinimalistImage' },
+        { select: 'legsSelect', image: 'legsImage', handler: 'changeLegsImage' },
+        { select: 'backPieceSelect', image: 'backPieceImage', handler: 'changeBackPieceImage' }
+    ];
+
+    pairs.forEach(function (pair) {
+        window[pair.handler] = function () {
+            swap(pair.select, pair.image);
+        };
+    });
+
+    var REFRESH_MS = 30000;
+
+    function peso(value) {
+        return '₱' + Number(value || 0).toLocaleString();
+    }
+
+    function setText(id, text) {
+        var element = document.getElementById(id);
+        if (element) {
+            element.textContent = text;
+        }
+    }
+
+    function escapeHtml(value) {
+        return String(value === null || value === undefined ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function formatDate(value) {
+        var date = new Date(value);
+        if (isNaN(date.getTime())) {
+            return 'N/A';
+        }
+        return date.toLocaleDateString('en-PH', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric'
+        });
+    }
+
+    function statusClass(status) {
+        if (status === 'Confirmed') return 'status-badge status-confirmed';
+        if (status === 'Completed') return 'status-badge status-completed';
+        if (status === 'Cancelled') return 'status-badge status-cancelled';
+        return 'status-badge status-pending';
+    }
+
+    function summarize(rows) {
+        var revenue = rows.reduce(function (sum, a) {
+            return sum + (Number(a.amount) || 0);
+        }, 0);
+
+        var noShows = rows.filter(function (a) {
+            return a.status === 'Cancelled';
+        }).length;
+
+        return {
+            count: rows.length,
+            revenue: revenue,
+            average: rows.length ? Math.round(revenue / rows.length) : 0,
+            noShowRate: rows.length ? Math.round((noShows / rows.length) * 100) : 0
+        };
+    }
+
+    function renderStats(stats) {
+        setText('totalAppointments', Number(stats.count || 0).toLocaleString());
+        setText('totalRevenue', peso(stats.revenue));
+        setText('avgBookingValue', peso(stats.average));
+        setText('noShowRate', (stats.noShowRate || 0) + '%');
+    }
+
+    function renderUpcoming(rows) {
+        var tbody = document.querySelector('.appointments-table tbody');
+        if (!tbody) return;
+
+        var today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        var upcoming = rows
+            .filter(function (a) {
+                return new Date(a.date) >= today && a.status !== 'Cancelled';
+            })
+            .sort(function (a, b) {
+                return new Date(a.date) - new Date(b.date);
+            })
+            .slice(0, 5);
+
+        if (!upcoming.length) {
+            tbody.innerHTML = '<tr><td colspan="5" class="no-records">No upcoming appointments</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = upcoming.map(function (a) {
+            var cls = statusClass(a.status);
+            return '<tr>' +
+                '<td>' + escapeHtml(a.clientName || 'N/A') + '</td>' +
+                '<td>' + formatDate(a.date) + '</td>' +
+                '<td>' + escapeHtml(a.time || 'N/A') + '</td>' +
+                '<td>' + escapeHtml(a.tattooType || 'N/A') + '</td>' +
+                '<td><span class="' + cls + '">' + escapeHtml(a.status || 'Pending') + '</span></td>' +
+                '</tr>';
+        }).join('');
+    }
+
+    // DIRECT FETCH FROM APPOINTMENTS API - NO ERROR
+    function refreshDashboard() {
+        fetch('/api/appointments/admin/all', { 
+            credentials: 'same-origin' 
+        })
+        .then(function (response) {
+            if (!response.ok) {
+                throw new Error('Failed to fetch appointments');
+            }
+            return response.json();
+        })
+        .then(function (payload) {
+            if (!payload || !payload.appointments) {
                 return;
             }
-            image.src = /\.(jpg|jpeg|png|gif|webp)$/i.test(value)
-                ? '/images/' + value
-                : '/images/' + value + '.jpg';
+
+            var rows = payload.appointments;
+            var stats = summarize(rows);
+            
+            renderStats(stats);
+            renderUpcoming(rows);
+        })
+        .catch(function (error) {
+            console.error('Dashboard refresh error:', error);
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Load dashboard data
+        if (document.getElementById('totalAppointments')) {
+            refreshDashboard();
+            setInterval(refreshDashboard, REFRESH_MS);
         }
 
-        select.addEventListener('change', updateImage);
-        updateImage();
-    });
-
-    // =============================================
-    // ADDITIONAL SETUP FOR DROPDOWNS WITH UNIQUE IDs
-    // For better control, we also set up event listeners
-    // =============================================
-
-    // Setup Back Piece dropdown (first categorySelect)
-    var backPieceSelect = document.getElementById('categorySelect');
-    var backPieceImage = document.getElementById('tattooImage');
-    if (backPieceSelect && backPieceImage) {
-        backPieceSelect.addEventListener('change', function() {
-            var value = this.value;
-            if (!value) return;
-            if (/\.(jpg|jpeg|png|gif|webp)$/i.test(value)) {
-                backPieceImage.src = '/images/' + value;
-            } else {
-                backPieceImage.src = '/images/' + value + '.jpg';
+        // Gallery dropdowns
+        pairs.forEach(function (pair) {
+            var select = document.getElementById(pair.select);
+            if (select) {
+                select.addEventListener('change', window[pair.handler]);
             }
         });
-        // Trigger initial update
-        backPieceSelect.dispatchEvent(new Event('change'));
-    }
 
-    // Setup Forearm dropdown (second categorySelect)
-    // Find the forearm gallery item
-    var forearmFigure = null;
-    var figures = document.querySelectorAll('.gallery-item');
-    figures.forEach(function(figure) {
-        var figcaption = figure.querySelector('figcaption');
-        if (figcaption && figcaption.textContent.includes('Fore Arm')) {
-            forearmFigure = figure;
-        }
-    });
-    
-    if (forearmFigure) {
-        var forearmSelect = forearmFigure.querySelector('#categorySelect');
-        var forearmImage = forearmFigure.querySelector('#tattooImage');
-        if (forearmSelect && forearmImage) {
-            forearmSelect.addEventListener('change', function() {
-                var value = this.value;
-                if (!value) return;
-                if (/\.(jpg|jpeg|png|gif|webp)$/i.test(value)) {
-                    forearmImage.src = '/images/' + value;
-                } else {
-                    forearmImage.src = '/images/' + value + '.jpg';
-                }
-            });
-            // Trigger initial update
-            forearmSelect.dispatchEvent(new Event('change'));
-        }
-    }
+        var gallerySelects = document.querySelectorAll('.gallery-select');
+        Array.prototype.forEach.call(gallerySelects, function (select) {
+            var figure = select.closest('.gallery-item');
+            var image = figure ? figure.querySelector('.gallery-image') : null;
+            if (!image) return;
 
-    // Setup Minimalist dropdowns
-    var minimalistSelects = document.querySelectorAll('#minimalistSelect');
-    var minimalistImages = document.querySelectorAll('#minimalistImage');
-    minimalistSelects.forEach(function(select, index) {
-        if (minimalistImages[index]) {
-            select.addEventListener('change', function() {
-                var value = this.value;
-                if (!value) return;
-                if (/\.(jpg|jpeg|png|gif|webp)$/i.test(value)) {
-                    minimalistImages[index].src = '/images/' + value;
-                } else {
-                    minimalistImages[index].src = '/images/' + value + '.jpg';
+            function updateImage() {
+                if (select.value) {
+                    image.src = imageUrl(select.value);
                 }
-            });
-            // Trigger initial update
-            select.dispatchEvent(new Event('change'));
-        }
+            }
+            select.addEventListener('change', updateImage);
+            updateImage();
+        });
     });
 
-});
+})();

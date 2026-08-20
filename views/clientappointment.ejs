@@ -41,12 +41,36 @@
                 <p>Manage and monitor all client appointments.</p>
             </div>
 
-            <div class="total-box">
-                <span id="totalAppointments">0</span>
-                <small>Total Appointments</small>
+        </div>
+
+
+        <section class="dashboard-overview overview-row">
+
+            <div class="overview-card">
+                <span class="overview-label"><span class="icon">📅</span> Bookings</span>
+                <span class="overview-value" id="statBookings">0</span>
+                <span class="delta up" id="statBookingsDelta">0% last month</span>
             </div>
 
-        </div>
+            <div class="overview-card">
+                <span class="overview-label"><span class="icon">💰</span> Revenue</span>
+                <span class="overview-value" id="statRevenue">₱0</span>
+                <span class="delta up" id="statRevenueDelta">0% last month</span>
+            </div>
+
+            <div class="overview-card">
+                <span class="overview-label"><span class="icon">📊</span> Avg Booking Value</span>
+                <span class="overview-value" id="statAverage">₱0</span>
+                <span class="delta up" id="statAverageDelta">0% last month</span>
+            </div>
+
+            <div class="overview-card">
+                <span class="overview-label"><span class="icon">🚫</span> No Show Rate</span>
+                <span class="overview-value" id="statNoShow">0%</span>
+                <span class="delta up" id="statNoShowDelta">0% last month</span>
+            </div>
+
+        </section>
 
 
         <section class="controls">
@@ -382,7 +406,6 @@
 
 
     <script src="/js/clientappointment.js"></script>
-    <script src="/js/clientappointment.tattoo.js"></script>
 
 </body>
 </html>
