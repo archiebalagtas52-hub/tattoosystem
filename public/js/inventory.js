@@ -5,6 +5,7 @@
 //   - picking an Item Name auto-selects its Category
 
 var API_URL = '/api/inventory';
+var CURRENT_ITEMS = []; // keeps the last-loaded inventory, used to block duplicate names
 
 var ITEMS_BY_CATEGORY = {
     Needles: [
@@ -37,6 +38,58 @@ var AUTO_SELECT_ITEM = {
     Gloves: 'Plastic Gloves',
     Ointment: 'Ointment'
 };
+
+// In-page toast notification (replaces browser alert()).
+// Injects its own container/styles once, so no HTML/CSS changes are needed.
+function showNotification(message, type) {
+    type = type || 'error'; // 'error' | 'success' | 'info'
+
+    var container = document.getElementById('appNotifications');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'appNotifications';
+        container.style.position = 'fixed';
+        container.style.top = '20px';
+        container.style.right = '20px';
+        container.style.zIndex = '9999';
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.gap = '10px';
+        document.body.appendChild(container);
+    }
+
+    var colors = {
+        error: { bg: '#fdecea', border: '#f5c2c0', text: '#b33c3c' },
+        success: { bg: '#e9f7ef', border: '#b7e4c7', text: '#1e7a46' },
+        info: { bg: '#eaf2fb', border: '#bcd6f5', text: '#2f5f9e' }
+    };
+    var palette = colors[type] || colors.info;
+
+    var toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.background = palette.bg;
+    toast.style.border = '1px solid ' + palette.border;
+    toast.style.color = palette.text;
+    toast.style.padding = '12px 16px';
+    toast.style.borderRadius = '6px';
+    toast.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)';
+    toast.style.fontSize = '14px';
+    toast.style.maxWidth = '320px';
+    toast.style.opacity = '0';
+    toast.style.transition = 'opacity 0.2s ease';
+
+    container.appendChild(toast);
+    requestAnimationFrame(function () {
+        toast.style.opacity = '1';
+    });
+
+    setTimeout(function () {
+        toast.style.opacity = '0';
+        setTimeout(function () {
+            toast.remove();
+        }, 200);
+    }, 4000);
+}
 
 function escapeHtml(text) {
     var div = document.createElement('div');
@@ -123,6 +176,17 @@ function getItemName() {
         : document.getElementById('itemName').value;
 }
 
+// Returns the existing item with the same name (case-insensitive), or null.
+function findExistingItem(name) {
+    var target = name.trim().toLowerCase();
+    for (var i = 0; i < CURRENT_ITEMS.length; i++) {
+        if (CURRENT_ITEMS[i].name.trim().toLowerCase() === target) {
+            return CURRENT_ITEMS[i];
+        }
+    }
+    return null;
+}
+
 // Load inventory items
 async function loadInventory() {
     var tbody = document.getElementById('inventoryTable');
@@ -130,6 +194,7 @@ async function loadInventory() {
     try {
         var response = await fetch(API_URL);
         var items = await response.json();
+        CURRENT_ITEMS = items; // keep a copy for duplicate checks in saveItem()
 
         if (!items.length) {
             tbody.innerHTML =
@@ -228,7 +293,14 @@ async function saveItem(event) {
     };
 
     if (!data.name || !data.category || isNaN(data.quantity) || isNaN(data.reorderLevel)) {
-        alert('Please fill in all required fields');
+        showNotification('Please fill in all fields', 'error');
+        return;
+    }
+
+    // Block duplicates: same item name (case-insensitive) already in inventory.
+    var existing = findExistingItem(data.name);
+    if (existing) {
+        showNotification(existing.name + ' is already in the Inventory', 'error');
         return;
     }
 
@@ -242,13 +314,14 @@ async function saveItem(event) {
         if (response.ok) {
             closeInventoryModal();
             loadInventory();
+            showNotification('Item added', 'success');
         } else {
             var error = await response.json();
-            alert('Error: ' + (error.error || 'Unknown error'));
+            showNotification(error.error || 'Error saving item', 'error');
         }
     } catch (error) {
         console.error('Error saving item:', error);
-        alert('Error saving item');
+        showNotification('Error saving item', 'error');
     }
 }
 
@@ -265,11 +338,11 @@ async function updateQuantity(id, change) {
             loadInventory();
         } else {
             var error = await response.json();
-            alert('Error: ' + (error.error || 'Could not update quantity'));
+            showNotification(error.error || 'Could not update quantity', 'error');
         }
     } catch (error) {
         console.error('Error updating quantity:', error);
-        alert('Error updating quantity');
+        showNotification('Error updating quantity', 'error');
     }
 }
 

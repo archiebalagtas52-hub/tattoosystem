@@ -20,24 +20,6 @@ const inventorySchema = new mongoose.Schema({
         min: 0
     },
 
-    price: {
-        type: Number,
-        default: 0,
-        min: 0
-    },
-
-    reorderLevel: {
-        type: Number,
-        default: 5,
-        min: 0
-    },
-
-    supplier: {
-        type: String,
-        default: "",
-        trim: true
-    },
-
     createdAt: {
         type: Date,
         default: Date.now
